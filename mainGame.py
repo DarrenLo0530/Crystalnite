@@ -6,6 +6,7 @@
 #######################################################################
 
 import pygame
+import os
 
 #Initialization
 pygame.init()
@@ -13,8 +14,22 @@ WIDTH = 1400
 HEIGHT = 900
 display = pygame.display.set_mode((WIDTH, HEIGHT))
 
+x = os.getcwd()
+print(x)
+print("HI")
+
 #Colours
 BLACK = (255, 255, 255)
+
+grid = [["." for i in range(10)] for i in range(10)]
+
+def loadMap(x,y):
+    mapGrid = []
+    with open("mapArea1.txt", "r") as mapFile:
+        for line in mapFile:
+            mapGrid.append(line.split())
+        
+
 
 class Obstacle():
     
@@ -22,5 +37,5 @@ class Obstacle():
         this.x = x
         this.y = y
         this.sprites = sprites
-    def isCollision(grid):
-        for(int i = 0)        
+
+loadMap(0,0)         
