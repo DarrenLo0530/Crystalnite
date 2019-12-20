@@ -19,7 +19,8 @@ BLACK = (255, 255, 255)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 
-def loadMap(areaNumber, areas):
+#Code to load the map
+def getMap(areaNumber, areas):
     mapGrid = []
     with open(areas[areaNumber], "r") as mapFile:
         for line in mapFile:
@@ -70,14 +71,14 @@ class Sword(Weapons):
 
 #Obstacle classes
 class Obstacle():
-    def __init__(self, x, y, sprites):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
         self.sprites = sprites
 
 class Character(Obstacle):
-    def __init__(self, x, y, sprites, name, health, speed, attack, direction):
-        Obstacle.__init__(self, x, y, sprites)
+    def __init__(self, x, y, name, health, speed, attack, direction):
+        Obstacle.__init__(self, x, y)
         self.name = name
         self.health = health
         self.speed = speed
@@ -94,19 +95,40 @@ class Character(Obstacle):
         self.y += self.speed
 
 class Passive(Character):
-    def __init__(self, x, y, sprites, name, health, speed, attack, direction):
-        Character.__init__(self, x, y, sprites, name, health, speed, attack, direction)
+    def __init__(self, x, y, name, health, speed, attack, direction):
+        Character.__init__(self, x, y, name, health, speed, attack, direction)
 
 class NPC(Passive):
-    def __init__(self, x, y, sprites, name, health, speed, attack, direction, say, item):
-        Passive.__init__(x, y, sprites, name, health, speed, attack, direction, say, item)
+    def __init__(self, x, y, name, health, speed, attack, direction, say, item, sprites):
+        Passive.__init__(x, y, name, health, speed, attack, direction, say, item)
+        self.sprites = sprites
         self.say = say
         self.item = item
 
 class Player(Passive):
-    def __init__(self, x, y, sprites)        
+    def __init__(self, x, y, name, health, speed, attack, direction, inventory, activeSword, activeShield, activeEffects):
+        Passive.__init__(x, y, sprites, name, health, speed, attack, direction, say, item)
+        self.inventory = inventory
+        self.activeSword = activeSword
+        self.activeShield = activeShield
+        self.activeEffects = activeEffects
 
 
+class PlayerMap(Player):
+    sprites = GREEN
+
+    def __init__(self, x, y, name, health, speed, attack, direction, inventory, activeSword, activeShield, activeEffects):
+        Player.__init__(self, x, y, name, health, speed, attack, direction, inventory, activeSword, activeShield, activeEffects)
+
+
+class PlayerBattle(Player):
+    def __init__(self, x, y, name, health, speed, attack, direction, inventory, activeSword, activeShield, activeEffects, battleSpeed):
+        Player.__init__(self, x, y, name, health, speed, attack, direction, inventory, activeSword, activeShield, activeEffects)
+        self.battleSpeed = battleSpeed
+
+#MAIN CODE
+
+#Map drawing and loading
 tileDict = {
     "#" : GREEN, 
     "." : RED,
@@ -115,6 +137,9 @@ tileDict = {
 
 areas = ["", "mapArea1.txt", "mapArea2.txt", "mapArea3.txt", "mapArea4.txt", "mapArea5.txt", "mapArea6.txt", "mapArea7.txt", "mapArea8.txt", "mapArea9.txt"]
 mapArea = 7
+
+#Initializing player character]
+player = new PlayerMap(30, 0, "Chad", 100, 3, 10, 2, [], "None", "None", )
 
 currArea = loadMap(mapArea, areas)
 drawMap(currArea, tileDict)
