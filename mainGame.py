@@ -1,7 +1,7 @@
 ########################################################################
 #File Name: CrystalNite.py
 #Description: A cool RPG
-#Authors: Darren Lo, Daniel Zhang and Sanjary Rajendran
+#Authors: Darren Lo, Daniel Zhang and Sanjay Rajendran
 #Date: Dec 16, 2019
 #######################################################################
 
@@ -54,10 +54,17 @@ class AttackPotion(Consumables):
 #Obstacle classes
 class Obstacle():
     
+<<<<<<< HEAD
     def __init__(self, x, y, sprites):
         self.x = x
         self.y = y
         self.sprites = sprites
+=======
+    def __init__(this, x, y, sprites):
+        this.x = x
+        this.y = y
+        this.sprites = sprites
+>>>>>>> c82f0207dbfcc10cf0a0c46933b283c6fc57e220
 
 while(True):
     currDisplay = loadMap(0, 0)
