@@ -1,7 +1,7 @@
 ########################################################################
 #File Name: CrystalNite.py
 #Description: A cool RPG
-#Authors: Darren Lo, Daniel Zhang and Sanjary Rajendran
+#Authors: Darren Lo, Daniel Zhang and Sanjay Rajendran
 #Date: Dec 16, 2019
 #######################################################################
 
@@ -33,7 +33,7 @@ def loadMap(x,y):
 
 class Obstacle():
     
-    def __init__(x, y, sprites):
+    def __init__(this, x, y, sprites):
         this.x = x
         this.y = y
         this.sprites = sprites
