@@ -1,3 +1,4 @@
 # = Tree
 . = Grass
-/ = path
+/ = pat
++ = Invisible obstacles(bottom right of tree etc.)

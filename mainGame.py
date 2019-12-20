@@ -14,10 +14,6 @@ WIDTH = 1400
 HEIGHT = 900
 display = pygame.display.set_mode((WIDTH, HEIGHT))
 
-x = os.getcwd()
-print(x)
-print("HI")
-
 #Colours
 BLACK = (255, 255, 255)
 
@@ -28,14 +24,41 @@ def loadMap(x,y):
     with open("mapArea1.txt", "r") as mapFile:
         for line in mapFile:
             mapGrid.append(line.split())
-        
+    return mapGrid
+
+#Item classes
+class Item():
+    def __init__(self, name, effect):
+        self.name = name
+        self.effect = effect
+
+class Consumables(Item):
+    def __init__(self, name, effect):
+        Item.__init__(self, name, effect)
+
+class SpeedPotion(Consumables):
+    def __init__(self, name, effect):
+        Consumables.__init__(self, name, effect)
+
+class HealthPotion(Consumables):
+    def __init__(self, name, effect):
+        Consumables.__init__(self, name, effect)
+
+class AttackPotion(Consumables):
+    def __init__(self, name, effect):
+        Consumables.__init__(self, name, effect)
 
 
+
+
+#Obstacle classes
 class Obstacle():
     
-    def __init__(x, y, sprites):
-        this.x = x
-        this.y = y
-        this.sprites = sprites
+    def __init__(self, x, y, sprites):
+        self.x = x
+        self.y = y
+        self.sprites = sprites
 
-loadMap(0,0)         
+while(True):
+    currDisplay = loadMap(0, 0)
+    for i in r
