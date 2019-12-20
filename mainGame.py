@@ -19,26 +19,18 @@ BLACK = (255, 255, 255)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 
-tileDict = {
-    "#" : GREEN, 
-    "." : RED,
-    "+" : GREEN
-}
-
 def loadMap(areaNumber, areas):
-    #Loads 35 from left, right, top, and bottom resulting in a 71x71 grid
     mapGrid = []
     with open(areas[areaNumber], "r") as mapFile:
         for line in mapFile:
-            mapGrid.append(line.split())
+            mapGrid.append(list(line))
     return mapGrid
 
 
 def drawMap(grid, tileDict):
     for i in range(30):
         for k in range(40):
-            
-            pygame.draw.rect(display, tileDict[grid[i][k]], (i*16, k*16, 16, 16), 0)
+            pygame.draw.rect(display, tileDict[grid[i][k]], (k*20, i*20, 20, 20), 0)
 
 #Item classes
 class Item():
@@ -91,11 +83,16 @@ class Character(Obstacle):
         self.speed = speed
         self.attack = attack
         self.direction = direction
-    
 
+tileDict = {
+    "#" : GREEN, 
+    "." : RED,
+    "+" : GREEN
+}
 areas = ["", "mapArea1.txt", "mapArea2.txt", "mapArea3.txt", "mapArea4.txt", "mapArea5.txt", "mapArea6.txt", "mapArea7.txt", "mapArea8.txt", "mapArea9.txt"]
 mapArea = 7
 
-while(True):
-    currArea = loadMap(mapArea, areas)
-    print(currArea)
+currArea = loadMap(mapArea, areas)
+drawMap(currArea, tileDict)
+pygame.display.update()
+pygame.time.wait(2000)
