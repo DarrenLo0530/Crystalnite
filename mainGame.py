@@ -84,15 +84,44 @@ class Character(Obstacle):
         self.attack = attack
         self.direction = direction
 
+    def moveRight(self):
+        self.x += self.speed
+    def moveLeft(self):
+        self.x -= self.speed
+    def moveUp(self):
+        self.Y += self.speed
+    def moveDown(self):
+        self.y += self.speed
+
+class Passive(Character):
+    def __init__(self, x, y, sprites, name, health, speed, attack, direction):
+        Character.__init__(self, x, y, sprites, name, health, speed, attack, direction)
+
+class NPC(Passive):
+    def __init__(self, x, y, sprites, name, health, speed, attack, direction, say, item):
+        Passive.__init__(x, y, sprites, name, health, speed, attack, direction, say, item)
+        self.say = say
+        self.item = item
+
+class Player(Passive):
+    def __init__(self, x, y, sprites)        
+
+
 tileDict = {
     "#" : GREEN, 
     "." : RED,
     "+" : GREEN
 }
+
 areas = ["", "mapArea1.txt", "mapArea2.txt", "mapArea3.txt", "mapArea4.txt", "mapArea5.txt", "mapArea6.txt", "mapArea7.txt", "mapArea8.txt", "mapArea9.txt"]
 mapArea = 7
 
 currArea = loadMap(mapArea, areas)
 drawMap(currArea, tileDict)
+
+
+
+
+
 pygame.display.update()
 pygame.time.wait(2000)
