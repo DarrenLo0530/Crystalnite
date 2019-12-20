@@ -1,4 +1,4 @@
-# = Tree
+# = Tree (Top Left Corner)
++ = Tree (Everything but the top left corner)
 . = Grass
-/ = pat
-+ = Invisible obstacles(bottom right of tree etc.)
+/ = path
