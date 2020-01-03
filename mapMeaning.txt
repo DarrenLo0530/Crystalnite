@@ -1,4 +1,21 @@
-# = Tree (Top Left Corner)
-+ = Tree (Everything but the top left corner)
+# = Normal tree 
+^ = Evergreen tree
++ = Obstacle spaces caused by other symbols(e.x the other spaces a tree fills up)
 . = Grass
+, = Snow
+! = Charred dirt
 / = path
+% = water
+
+T = Cuttable Trees
+S = Sign
+C = Chest
+M = Moving Rock
+
+
+
+P = Villager
+W = Wizard
+Z = Zombie
+L = Lizard
+N = Necromancer
