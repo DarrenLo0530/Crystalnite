@@ -1,0 +1,4 @@
+Signs:
+AreaNumber GridPositionX GridPositionY TextToSay
+
+Chests:
