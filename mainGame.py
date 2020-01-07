@@ -10,8 +10,6 @@ import pygame
 from math import floor, ceil
 import os
 
-
-
 #Initialization
 pygame.init()
 WIDTH = 1400
@@ -28,9 +26,13 @@ BLUE = (0, 0, 255)
 YELLOW = (238, 232, 170)
 WATER_BLUE = (0, 0, 130)
 EDGE = (255, 255, 0)
+BEIGE = (207, 185, 151)
 
 #Fonts
 textFont = pygame.font.SysFont("Comic Sans MS", 20)
+
+#Grid movement in directions(Clockwise starting from 1 is upwards direction)
+movement = [[], [0, -1], [1, 0], [0, 1], [-1, 0]]
 
 #Map Information
 GRID_DIST_TOP = 25
@@ -38,27 +40,34 @@ GRID_WIDTH = 40
 GRID_HEIGHT = 30
 SQUARE_SIZE = 25
 moveableSpaces = ["/", ".", ","]
+areaMap = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
-
+#Map Files
 groundAreas = ["", "mapAreaGround1.txt", "mapAreaGround2.txt", "mapAreaGround3.txt", "mapAreaGround4.txt", "mapAreaGround5.txt", "mapAreaGround6.txt", "mapAreaGround7.txt", "mapAreaGround8.txt", "mapAreaGround9.txt"]
 obstacleAreas = ["", "mapArea1.txt", "mapArea2.txt", "mapArea3.txt", "mapArea4.txt", "mapArea5.txt", "mapArea6.txt", "mapArea7.txt", "mapArea8.txt", "mapArea9.txt"]
 
-areaMap = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
-
+#Tile dictionaries
 groundDict = {
     "." : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "grassArt.png")), (25, 25)), 
     "," : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "snowArt.png")), (25, 25))
 }
+
 obstacleDict = {
     "#" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "treeArt.png")), (50, 50)),
     "/" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "pathArt.png")), (25, 25)), 
     "%" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "waterArt.png")), (25, 25)),
     "^" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "everGreenTreeArt.png")), (50, 50)),
     "S" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "signArt.png")), (25, 25)),
-    "C" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "chestArt.png")), (25, 25)).
-    "T" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "smallTreeArt.png")), (25, 25))
-
+    "C" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "chestArt.png")), (25, 25)),
+    "T" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "smallTreeArt.png")), (25, 25)),
+    "O" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "moveableRock.png")), (25, 25)),
 }
+
+def isInConstraint(x, y, xConstraint, yConstraint):
+    if x >= 0 and x <= xConstraint and y >= 0 and y <= yConstraint:
+        return True
+    else:
+        return False
 
 #Item classes
 class Item():
@@ -70,15 +79,16 @@ class Consumables(Item):
     def __init__(self, name, effect):
         Item.__init__(self, name, effect)
 
+
+class AttackPotion(Consumables):
+    def __init__(self, name, effect, time):
+        Consumables.__init__(self, name, effect)
+        
 class SpeedPotion(Consumables):
-    def __init__(self, name, effect):
+    def __init__(self, name, effect, time):
         Consumables.__init__(self, name, effect)
 
 class maxHealthPotion(Consumables):
-    def __init__(self, name, effect):
-        Consumables.__init__(self, name, effect)
-
-class AttackPotion(Consumables):
     def __init__(self, name, effect):
         Consumables.__init__(self, name, effect)
 
@@ -116,22 +126,19 @@ class Character(FreeMovingObstacle):
         gridPosY = (pointY - GRID_DIST_TOP)/SQUARE_SIZE
         return (gridPosX + 1, gridPosY + 1)
 
-    def isCollide(self, grid, movedX, movedY):
+    def isCollide(self, obstacleMap, movedX, movedY):
         cornerLocations = []
-        cornerLocations.append(self.getGridPos(movedX, movedY))
-        cornerLocations.append(self.getGridPos(movedX + SQUARE_SIZE, movedY + SQUARE_SIZE)) 
-        
-        for i in range(2): #xPos
-            for k in range(2): #yPos
-                pointX = cornerLocations[i][0]
-                pointY = cornerLocations[k][1]
-                if pointX <= 0 or pointX >= GRID_WIDTH+2 or pointY <= 0 or pointY >= GRID_HEIGHT+2:
-                   return True
-                elif (grid[floor(pointY)][floor(pointX)] not in moveableSpaces):
-                    if not(pointX % 1 == 0 and grid[floor(pointY)][floor(pointX) - 1] in moveableSpaces) and not(pointY % 1 == 0 and grid[floor(pointY) - 1][floor(pointX)] in moveableSpaces):
-                        return True
-        return False
+        cornerLocations.append(self.getGridPos(movedX, movedY)) #Top left
+        cornerLocations.append(self.getGridPos(movedX + SQUARE_SIZE - 1, movedY)) #Top Right
+        cornerLocations.append(self.getGridPos(movedX, movedY + SQUARE_SIZE - 1)) #Bottom Left
+        cornerLocations.append(self.getGridPos(movedX + SQUARE_SIZE - 1, movedY + SQUARE_SIZE - 1)) #Bottom Right
 
+        for corner in cornerLocations:
+            if not isInConstraint(corner[0], corner[1], GRID_WIDTH + 2, GRID_HEIGHT + 2):
+                return True
+            elif obstacleMap[floor(corner[1])][floor(corner[0])] not in moveableSpaces:
+                return True
+        return False
 
 class NPC(Character):
     def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites):
@@ -153,14 +160,36 @@ class Aggressive(NPC):
         NPC.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites)
 
 class Passive(NPC):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, say, item):
+    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, itesm):
         NPC.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites)
-        self.say = say
+        self.dialogue = dialogue
         self.item = item
 
+class SellingVillager(Passive):
+    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items, costs, stock):
+        Passive.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items)
+        self.costs = costs
+        self.stock = stock
+
+class GivingVillager(Passive):
+    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items):
+        Passive.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items)
+    def speak(self):
+        pygame.draw.rect(display, BEIGE, (150, 770, 1100, 100), 0)
+        for i in range(len(self.text)):
+            signText = textFont.render(self.text[i].strip(), 1, BLACK)
+            display.blit(signText, (175, 790 + i*30))
+        pygame.display.update()
+        pygame.time.wait(1000)
+        
+    def giveItem(self, player):
+        for i in items:
+            player.inventory.append(i)
+
 class Player(Character):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, inventory, activeSword, activeShield, activeEffects):
+    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
         Character.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
+        self.goldAmount = goldAmount
         self.inventory = inventory
         self.activeSword = activeSword
         self.activeShield = activeShield
@@ -168,8 +197,8 @@ class Player(Character):
 
 class PlayerMap(Player):
     sprites = BLUE
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, inventory, activeSword, activeShield, activeEffects):
-        Player.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, inventory, activeSword, activeShield, activeEffects)
+    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
+        Player.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects)
     def drawCharacter(self):
         pygame.draw.rect(display, self.sprites,(self.x, self.y, 25, 25), 0)
     
@@ -195,20 +224,20 @@ class PlayerMap(Player):
     def getMovement(self, grid):
         newX = self.x
         newY = self.y
-        for i in range(2):
+        for i in range(self.speed):
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_RIGHT]:
-                newX += self.speed/2
-                self.direction = 2
-            elif keys[pygame.K_LEFT]:
-                newX -= self.speed/2
-                self.direction = 4
-            elif keys[pygame.K_UP]:
-                newY -= self.speed/2
-                self.direction = 1
-            elif keys[pygame.K_DOWN]:
-                newY += self.speed/2
-                self.direction = 3
+            if keys[pygame.K_RIGHT] or keys[pygame.K_LEFT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
+                if keys[pygame.K_RIGHT]:
+                    self.direction = 2
+                elif keys[pygame.K_LEFT]:
+                    self.direction = 4
+                elif keys[pygame.K_UP]:
+                    self.direction = 1
+                elif keys[pygame.K_DOWN]:
+                    self.direction = 3
+                newX += movement[self.direction][0]
+                newY += movement[self.direction][1]
+
             if not self.isCollide(grid, newX, newY):
                 self.x = newX
                 self.y = newY
@@ -227,22 +256,34 @@ class PlayerMap(Player):
             playerCoord = self.getGridPos(self.x, self.y + SQUARE_SIZE/2)
             return (floor(playerCoord[0]) - 1, floor(playerCoord[1]))
 
-    def interact(self, currentAreaNumber, grid, signs, chests):
+    def interactAndUpdate(self, currentAreaNumber, currObstacleMap, signs, chests): #Used to interact with environment
         spaceInfront = self.getSpaceInfront()
-        if spaceInfront[0] >= 0 and spaceInfront[0] <= GRID_WIDTH + 2 and spaceInfront[1] >= 0 and spaceInfront[1] <= GRID_HEIGHT + 2:
-            if grid[spaceInfront[1]][spaceInfront[0]] == "S":
+        if isInConstraint(spaceInfront[0], spaceInfront[1], GRID_WIDTH + 2, GRID_HEIGHT + 2):
+            if currObstacleMap[spaceInfront[1]][spaceInfront[0]] == "S":
                 for s in signs:
                     if s.gridX == spaceInfront[0] and s.gridY == spaceInfront[1]:
                         s.read()
-            elif grid[spaceInfront[1]][spaceInfront[0]] == "C":
+                return False
+            elif currObstacleMap[spaceInfront[1]][spaceInfront[0]] == "C":
                 for c in chests:
                     if c.gridX == spaceInfront[0] and c.gridY == spaceInfront[1]:
                         c.giveItem(self.inventory)
-
+                return False
+            elif currObstacleMap[spaceInfront[1]][spaceInfront[0]] == "T":
+                currObstacleMap[spaceInfront[1]][spaceInfront[0]] = "."
+                return True
+            elif currObstacleMap[spaceInfront[1]][spaceInfront[0]] == "O":
+                movedX = spaceInfront[0] + movement[self.direction][0]
+                movedY = spaceInfront[1] + movement[self.direction][1]
+                if isInConstraint(movedX, movedY, GRID_WIDTH, GRID_HEIGHT):
+                    if currObstacleMap[movedY][movedX] == ".":
+                        currObstacleMap[movedY][movedX] = "O"
+                        currObstacleMap[spaceInfront[1]][spaceInfront[0]] = "."
+                return True
 
 class PlayerBattle(Player):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, inventory, activeSword, activeShield, activeEffects, battleSpeed):
-        Player.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, inventory, activeSword, activeShield, activeEffects)
+    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects, battleSpeed):
+        Player.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects)
         self.battleSpeed = battleSpeed
 
 #Environmental obstacles
@@ -279,13 +320,7 @@ class Chest(Environmental):
             inventory.append(i)
         self.items.clear()
 
-class Tree(Environmental):
-    def __init__(self, gridX, gridY, area):
-        Environmental.__init__(self, gridX, gridY, area)
-    def chopDown(self, obstacleMap): #Animation of tree getting chopped down
-        obstacleMap[self.gridY][self.gridX] == "."
-
-#Code to load the map
+#Functions that load different parts of the game
 def getMap(areaNumber, areas, folder):
     mapGrid = []
     with open(os.path.join(cwd, folder, areas[areaNumber]), "r") as mapFile:
@@ -319,29 +354,43 @@ def loadChests():
     with open(os.path.join(cwd, "objectFiles", "chests.txt", "r")) as chestFile:
         for line in chestFile:
             chestInfo = line.split(" ")
+            chestItems = []
+            
+            chestItemNames = chestInfo[3].split("/")
+            for i in chestItemNames:
+                createWeaponFrom(i).append(chestItems)
+
+            chests.append(Chest(chestInfo[1], chestInfo[2], chestInfo[0], chestItems))
     return chests
 
-def loadTrees(obstacleGrid):
-    trees = []
-    for i in len(obstacleGrid()):
-        treeLine = []
-        for k in len(obstacleGrid[line]):
-            if obstacleGrid[i][k] != "T":
-                treeLine.append(".")
-            else:
-                treeLine.append(Tree(k, i))
-#MAIN CODE 
+def loadBuyingVillagers():
+    villagers = []
+    with open(os.path.join(cwd, "objectFiles", "buyingVillagers.txt")) as buyVillagerFile:
+        for line in buyVillagerFile:
+            buyVillager = 
 
-       
+def createWeapon(weaponName):
+    weaponFiles = ["swordTypes.txt", "shieldTypes.txt"]
+    weaponArt = ["swordArt", "shieldArt"]
 
-#Map drawing and loading
+    for i in range(2):
+        with open(os.path.join(cwd, "objectFiles", weaponFiles[i])) as weaponFile:
+            for line in weaponFile:
+                weaponInfo = line.split(" ")
+                if weaponInfo[0] == weaponName
+                    return Sword(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, weaponArt[i], swordInfo[2])))
+        
+########################################################################################################################################
+
+
 
 currentAreaNumber = 7
 areaNumberX = 0
 areaNumberY = 2
 currGroundMap = getMap(currentAreaNumber, groundAreas, "mapAreaGround")
 currObstacleMap = getMap(currentAreaNumber, obstacleAreas, "mapAreaObstacles")
-background = getMapSurface(currGroundMap, currObstacleMap)        
+
+background = getMapSurface(currGroundMap, currObstacleMap)
 
 enemies = []
 rocks = []
@@ -350,18 +399,17 @@ chests = []
 signs = loadSigns()
 
 #Initializing player character]
-player = PlayerMap(275, 700, "Chad", 100, 100, 2, 10, 1, [], "None", "None", [])
+player = PlayerMap(275, 700, "Chad", 100, 100, 4, 10, 1, [], "None", "None", [])
 
 inPlay = True
 while(inPlay):
     display.fill(BLACK)
-    display.blit(background,(0, 0))
+    display.blit(background, (0, 0))
     eventQueue = pygame.event.get()
 
     for event in eventQueue:
         if event.type == pygame.QUIT:
             inPlay = False
-
     #Character movement
     player.getMovement(currObstacleMap)
     player.drawCharacter()
@@ -369,7 +417,9 @@ while(inPlay):
     for event in eventQueue:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                player.interact(currentAreaNumber, currObstacleMap, signs, chests)
+                isUpdate = player.interactAndUpdate(currentAreaNumber, currObstacleMap, signs, chests)
+                if isUpdate:
+                    background = getMapSurface(currGroundMap, currObstacleMap)
             break
 
     #Loads in new map area or stays in current one
@@ -391,9 +441,9 @@ while(inPlay):
         currentAreaNumber = areaMap[areaNumberY][areaNumberX]
         currGroundMap = getMap(currentAreaNumber, groundAreas, "mapAreaGround")
         currObstacleMap = getMap(currentAreaNumber, obstacleAreas, "mapAreaObstacles")
-        background = getMapSurface(currGroundMap, currObstacleMap)    
+        background = getMapSurface(currGroundMap, currObstacleMap)
 
-  
+
     pygame.display.update()
     pygame.time.wait(5)
 

@@ -1,6 +1,6 @@
 # = Normal tree 
 ^ = Evergreen tree
-+ = Obstacle spaces caused by other symbols(e.x the other spaces a tree fills up)
++ = Obstacle spaces caused by other symbols(ex. the other spaces a tree fills up)
 . = Grass
 , = Snow
 ! = Charred dirt
@@ -12,9 +12,10 @@ S = Sign
 C = Chest
 M = Moving Rock
 
+B = Buying Villager
+G = Giving Villager
 
 
-P = Villager
 W = Wizard
 Z = Zombie
 L = Lizard
