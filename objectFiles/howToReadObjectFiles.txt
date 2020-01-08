@@ -2,3 +2,10 @@ Signs:
 AreaNumber GridPositionX GridPositionY TextToSay
 
 Chests:
+AreaNumber GridPositionX GridPositionY List_of_Items(Separated by /)
+
+Swords:
+Name Effect(IntegerValue) Sprite
+
+Villagers:
+AreaNumber Name

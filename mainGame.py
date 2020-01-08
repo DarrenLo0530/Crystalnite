@@ -30,6 +30,8 @@ BEIGE = (207, 185, 151)
 
 #Fonts
 textFont = pygame.font.SysFont("Comic Sans MS", 20)
+storeFont = pygame.font.SysFont("Comic Sans MS", 15)
+
 
 #Grid movement in directions(Clockwise starting from 1 is upwards direction)
 movement = [[], [0, -1], [1, 0], [0, 1], [-1, 0]]
@@ -68,6 +70,12 @@ def isInConstraint(x, y, xConstraint, yConstraint):
         return True
     else:
         return False
+
+class StoreItem():
+    def __init__(self, item, stock, cost):
+        self.item = item
+        self.stock = stock
+        self.cost = cost
 
 #Item classes
 class Item():
@@ -160,20 +168,9 @@ class Aggressive(NPC):
         NPC.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites)
 
 class Passive(NPC):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, itesm):
+    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue):
         NPC.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites)
         self.dialogue = dialogue
-        self.item = item
-
-class SellingVillager(Passive):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items, costs, stock):
-        Passive.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items)
-        self.costs = costs
-        self.stock = stock
-
-class GivingVillager(Passive):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items):
-        Passive.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items)
     def speak(self):
         pygame.draw.rect(display, BEIGE, (150, 770, 1100, 100), 0)
         for i in range(len(self.text)):
@@ -181,7 +178,26 @@ class GivingVillager(Passive):
             display.blit(signText, (175, 790 + i*30))
         pygame.display.update()
         pygame.time.wait(1000)
-        
+
+class SellingVillager(Passive):
+    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, store):
+        Passive.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue)
+        self.store = store
+    
+    def sell(self, player):
+        selling = True
+        while(selling):
+            pygame.draw.rect(display, BLACK, (30, 30, 500, 500), 0)
+            for storeItem in store:
+                itemName = storeFont(storeItem.item.name, 1, BLACK)
+                itemStock = storeFont(storeItem.stock, 1, BLACK)
+                itemCost = storeFont(storeItem.cost, 1, BLACK)
+                
+
+class GivingVillager(Passive):
+    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items):
+        Passive.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items)
+    
     def giveItem(self, player):
         for i in items:
             player.inventory.append(i)
@@ -381,8 +397,6 @@ def createWeapon(weaponName):
                     return Sword(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, weaponArt[i], swordInfo[2])))
         
 ########################################################################################################################################
-
-
 
 currentAreaNumber = 7
 areaNumberX = 0
