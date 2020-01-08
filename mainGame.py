@@ -32,7 +32,6 @@ BEIGE = (207, 185, 151)
 textFont = pygame.font.SysFont("Comic Sans MS", 20)
 storeFont = pygame.font.SysFont("Comic Sans MS", 15)
 
-
 #Grid movement in directions(Clockwise starting from 1 is upwards direction)
 movement = [[], [0, -1], [1, 0], [0, 1], [-1, 0]]
 
@@ -44,11 +43,13 @@ SQUARE_SIZE = 25
 moveableSpaces = ["/", ".", ","]
 areaMap = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
-#Map Files
+#Folder and file information
 groundAreas = ["", "mapAreaGround1.txt", "mapAreaGround2.txt", "mapAreaGround3.txt", "mapAreaGround4.txt", "mapAreaGround5.txt", "mapAreaGround6.txt", "mapAreaGround7.txt", "mapAreaGround8.txt", "mapAreaGround9.txt"]
 obstacleAreas = ["", "mapArea1.txt", "mapArea2.txt", "mapArea3.txt", "mapArea4.txt", "mapArea5.txt", "mapArea6.txt", "mapArea7.txt", "mapArea8.txt", "mapArea9.txt"]
+weaponFiles = ["swordTypes.txt", "shieldTypes.txt"]
+weaponArt = ["swordArt", "shieldArt"]
 
-#Tile dictionaries
+#Tile images
 groundDict = {
     "." : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "grassArt.png")), (25, 25)), 
     "," : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "snowArt.png")), (25, 25))
@@ -70,6 +71,16 @@ def isInConstraint(x, y, xConstraint, yConstraint):
         return True
     else:
         return False
+
+def drawTextBoxes(text, delay, backgroundColour):
+    for i in range(0, len(text), 2):
+        pygame.draw.rect(display, backgroundColour, (150, 770, 1100, 100), 0)
+        for k in range(2):
+            displayText = textFont.render(text[i+k].strip(), 1, BLACK)
+            display.blit(displayText, (175, 790 + k*30))
+        
+        pygame.display.update()
+        pygame.time.wait(delay)
 
 class StoreItem():
     def __init__(self, item, stock, cost):
@@ -113,14 +124,19 @@ class Sword(Weapons):
     def __init__(self, name, effect, sprite):
         Weapons.__init__(self, name, effect, sprite)
 
-class FreeMovingObstacle():
-    def __init__(self, x, y):
+class GameObject():
+    def __init__(self, areaNumber):
+        self.areaNumber = areaNumber
+
+class FreeMovingObstacle(GameObject):
+    def __init__(self, areaNumber, x, y):
+        GameObject.__init__(self, areaNumber)
         self.x = x
         self.y = y
 
 class Character(FreeMovingObstacle):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction):
-        FreeMovingObstacle.__init__(self, x, y)
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction):
+        FreeMovingObstacle.__init__(self, areaNumber, x, y)
         self.name = name
         self.remainingHealth = remainingHealth
         self.maxHealth = maxHealth
@@ -149,8 +165,8 @@ class Character(FreeMovingObstacle):
         return False
 
 class NPC(Character):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites):
-        Character.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites):
+        Character.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
         self.sprites = sprites
     #Functions to move character around
     def moveRight(self):
@@ -164,47 +180,48 @@ class NPC(Character):
     
 
 class Aggressive(NPC):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites):
-        NPC.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites)
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites):
+        NPC.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites)
 
 class Passive(NPC):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue):
-        NPC.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites)
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue):
+        NPC.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites)
         self.dialogue = dialogue
     def speak(self):
-        pygame.draw.rect(display, BEIGE, (150, 770, 1100, 100), 0)
-        for i in range(len(self.text)):
-            signText = textFont.render(self.text[i].strip(), 1, BLACK)
-            display.blit(signText, (175, 790 + i*30))
-        pygame.display.update()
-        pygame.time.wait(1000)
+        drawTextBoxes(self.dialogue, 1000, BEIGE)
 
 class SellingVillager(Passive):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, store):
-        Passive.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue)
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, store):
+        Passive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue)
         self.store = store
     
     def sell(self, player):
         selling = True
         while(selling):
             pygame.draw.rect(display, BLACK, (30, 30, 500, 500), 0)
-            for storeItem in store:
+            for storeItem in self.store:
                 itemName = storeFont(storeItem.item.name, 1, BLACK)
                 itemStock = storeFont(storeItem.stock, 1, BLACK)
                 itemCost = storeFont(storeItem.cost, 1, BLACK)
-                
+            
 
 class GivingVillager(Passive):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items):
-        Passive.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items)
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items):
+        Passive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue)
+        self.items = items
     
     def giveItem(self, player):
-        for i in items:
-            player.inventory.append(i)
+        if len(self.items) == 0:
+            drawTextBoxes("I have no more items to give you!", 1000, BEIGE)
+
+        else:
+            for i in self.items:
+                player.inventory.append(i)
+                drawTextBoxes("YOU GOT " + i.name + "!", 100, BEIGE)           
 
 class Player(Character):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
-        Character.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
+        Character.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
         self.goldAmount = goldAmount
         self.inventory = inventory
         self.activeSword = activeSword
@@ -213,8 +230,8 @@ class Player(Character):
 
 class PlayerMap(Player):
     sprites = BLUE
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
-        Player.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects)
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
+        Player.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects)
     def drawCharacter(self):
         pygame.draw.rect(display, self.sprites,(self.x, self.y, 25, 25), 0)
     
@@ -277,12 +294,12 @@ class PlayerMap(Player):
         if isInConstraint(spaceInfront[0], spaceInfront[1], GRID_WIDTH + 2, GRID_HEIGHT + 2):
             if currObstacleMap[spaceInfront[1]][spaceInfront[0]] == "S":
                 for s in signs:
-                    if s.gridX == spaceInfront[0] and s.gridY == spaceInfront[1]:
+                    if s.areaNumber == currentAreaNumber and s.gridX == spaceInfront[0] and s.gridY == spaceInfront[1]:
                         s.read()
                 return False
             elif currObstacleMap[spaceInfront[1]][spaceInfront[0]] == "C":
                 for c in chests:
-                    if c.gridX == spaceInfront[0] and c.gridY == spaceInfront[1]:
+                    if c.areaNumber == currentAreaNumber and c.gridX == spaceInfront[0] and c.gridY == spaceInfront[1]:
                         c.giveItem(self.inventory)
                 return False
             elif currObstacleMap[spaceInfront[1]][spaceInfront[0]] == "T":
@@ -297,40 +314,28 @@ class PlayerMap(Player):
                         currObstacleMap[spaceInfront[1]][spaceInfront[0]] = "."
                 return True
 
-class PlayerBattle(Player):
-    def __init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects, battleSpeed):
-        Player.__init__(self, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects)
-        self.battleSpeed = battleSpeed
-
 #Environmental obstacles
-class GridRestrictedObstacle():
-    def __init__(self, gridX, gridY):
+class GridRestrictedObstacle(GameObject):
+    def __init__(self, areaNumber, gridX, gridY):
+        GameObject.__init__(self, areaNumber)
         self.gridX = gridX
         self.gridY = gridY
 
 class Environmental(GridRestrictedObstacle):
-    def __init__(self, gridX, gridY, area):
-        GridRestrictedObstacle.__init__(self, gridX, gridY)
-        self.area = area
+    def __init__(self, areaNumber, gridX, gridY):
+        GridRestrictedObstacle.__init__(self, areaNumber, gridX, gridY)
 
 class Sign(Environmental):
-    def __init__(self, gridX, gridY, area, text):
-        Environmental.__init__(self, gridX, gridY, area)
+    def __init__(self, areaNumber, gridX, gridY, text):
+        Environmental.__init__(self, areaNumber, gridX, gridY)
         self.text = text
-
     def read(self):
-        pygame.draw.rect(display, WHITE, (150, 770, 1100, 100), 0)
-        for i in range(len(self.text)):
-            signText = textFont.render(self.text[i].strip(), 1, BLACK)
-            display.blit(signText, (175, 790 + i*30))
-        pygame.display.update()
-        pygame.time.wait(1000)
+        drawTextBoxes(self.text, 1000, WHITE)
 
 class Chest(Environmental):
-    def __init__(self, gridX, gridY, area, items):
-        Environmental.__init__(self, gridX, gridY, area)
+    def __init__(self, areaNumber, gridX, gridY, items):
+        Environmental.__init__(self, areaNumber, gridX, gridY)
         self.items = items
-    
     def giveItem(self, inventory):
         for i in self.items:
             inventory.append(i)
@@ -362,7 +367,7 @@ def loadSigns():
     with open(os.path.join(cwd, "objectFiles", "signs.txt"), "r") as signFile:
         for line in signFile:
             signInfo = line.split(" ")
-            signs.append(Sign(int(signInfo[1]), int(signInfo[2]), int(signInfo[0]), signInfo[3].split("/")))
+            signs.append(Sign(int(signInfo[0]), int(signInfo[1]), int(signInfo[2]), signInfo[3].split("/")))
     return signs
 
 def loadChests():
@@ -374,46 +379,46 @@ def loadChests():
             
             chestItemNames = chestInfo[3].split("/")
             for i in chestItemNames:
-                createWeaponFrom(i).append(chestItems)
+                chestItems.append(createWeapon(i))
 
-            chests.append(Chest(chestInfo[1], chestInfo[2], chestInfo[0], chestItems))
+            chests.append(Chest(chestInfo[0], chestInfo[1], chestInfo[2], chestItems))
     return chests
 
-def loadBuyingVillagers():
-    villagers = []
-    with open(os.path.join(cwd, "objectFiles", "buyingVillagers.txt")) as buyVillagerFile:
-        for line in buyVillagerFile:
-            buyVillager = 
+def loadSellingVillagers():
+    sellingVillagers = []
+    with open(os.path.join(cwd, "objectFiles", "sellingVillagers.txt")) as sellingVillagerFile:
+        for line in sellingVillagerFile:
+            store = []
+            storeItem = StoreItem()
 
 def createWeapon(weaponName):
-    weaponFiles = ["swordTypes.txt", "shieldTypes.txt"]
-    weaponArt = ["swordArt", "shieldArt"]
-
     for i in range(2):
         with open(os.path.join(cwd, "objectFiles", weaponFiles[i])) as weaponFile:
             for line in weaponFile:
                 weaponInfo = line.split(" ")
-                if weaponInfo[0] == weaponName
-                    return Sword(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, weaponArt[i], swordInfo[2])))
+                if weaponInfo[0] == weaponName:
+                    return Sword(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, weaponArt[i], weaponInfo[2])))
         
+
 ########################################################################################################################################
 
-currentAreaNumber = 7
+#Initializing player character
+player = PlayerMap(7, 275, 700, "Chad", 100, 100, 4, 10, 1, 0, [], "None", "None", [])
+
+#Initializing map information
 areaNumberX = 0
 areaNumberY = 2
-currGroundMap = getMap(currentAreaNumber, groundAreas, "mapAreaGround")
-currObstacleMap = getMap(currentAreaNumber, obstacleAreas, "mapAreaObstacles")
+currGroundMap = getMap(player.areaNumber, groundAreas, "mapAreaGround")
+currObstacleMap = getMap(player.areaNumber, obstacleAreas, "mapAreaObstacles")
 
 background = getMapSurface(currGroundMap, currObstacleMap)
 
+#Lists that store enemy positions
 enemies = []
 rocks = []
 cuttableTrees = []
 chests = []
 signs = loadSigns()
-
-#Initializing player character]
-player = PlayerMap(275, 700, "Chad", 100, 100, 4, 10, 1, [], "None", "None", [])
 
 inPlay = True
 while(inPlay):
@@ -431,7 +436,7 @@ while(inPlay):
     for event in eventQueue:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                isUpdate = player.interactAndUpdate(currentAreaNumber, currObstacleMap, signs, chests)
+                isUpdate = player.interactAndUpdate(player.areaNumber, currObstacleMap, signs, chests)
                 if isUpdate:
                     background = getMapSurface(currGroundMap, currObstacleMap)
             break
@@ -452,11 +457,10 @@ while(inPlay):
             areaNumberX-=1
             player.x = WIDTH/2 + GRID_WIDTH*SQUARE_SIZE/2 - SQUARE_SIZE - 10 
         
-        currentAreaNumber = areaMap[areaNumberY][areaNumberX]
-        currGroundMap = getMap(currentAreaNumber, groundAreas, "mapAreaGround")
-        currObstacleMap = getMap(currentAreaNumber, obstacleAreas, "mapAreaObstacles")
+        player.areaNumber = areaMap[areaNumberY][areaNumberX]
+        currGroundMap = getMap(player.areaNumber, groundAreas, "mapAreaGround")
+        currObstacleMap = getMap(player.areaNumber, obstacleAreas, "mapAreaObstacles")
         background = getMapSurface(currGroundMap, currObstacleMap)
-
 
     pygame.display.update()
     pygame.time.wait(5)
