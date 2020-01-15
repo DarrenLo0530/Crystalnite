@@ -1,11 +1,14 @@
 Signs:
-AreaNumber GridPositionX GridPositionY TextToSay
+AreaNumber, GridPositionX, GridPositionY, TextToSay
 
 Chests:
-AreaNumber GridPositionX GridPositionY List_of_Items(Separated by /)
+AreaNumber, GridPositionX, GridPositionY, List_of_Items(Separated by /)
 
 Swords:
-Name Effect(IntegerValue) Sprite
+Name, Effect(IntegerValue), Sprite
 
-Villagers:
-AreaNumber Name
+Buying Villagers:
+AreaNumber, Name, GridPositionX, GridPositionY, Name, Direction, Sprites, Dialogue_Lines(Separated by /), List_of_Items(Separated by / with name, stock and cost separated by:)
+
+sellingVillager
+AreaNumber, Name, 
