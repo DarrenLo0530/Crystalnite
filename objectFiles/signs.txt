@@ -1,2 +1,2 @@
-7 12 26 Hello!/Bye/Eat Poo
-8 5 5 Bye!
+7;12;26;Hello!/Bye/Eat Poo
+8;5;5;Bye!

@@ -33,6 +33,7 @@ BEIGE = (207, 185, 151)
 #Fonts
 textFont = pygame.font.SysFont("Comic Sans MS", 20)
 storeFont = pygame.font.SysFont("Comic Sans MS", 15)
+titleFont = pygame.font.SysFont("Comic Sans MS", 40)
 
 #Grid movement in directions(Clockwise starting from 1 is upwards direction)
 movement = [[], [0, -1], [1, 0], [0, 1], [-1, 0]]
@@ -45,6 +46,7 @@ SQUARE_SIZE = 25
 moveableSpaces = ["/", ".", ",", "-", "I"]
 areaMap = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 spawnChances = [
+    [],
     [20, 30, 50],
     [50, 50, 0],
     [10, 10, 80],
@@ -68,7 +70,8 @@ weaponArt = ["swordArt", "shieldArt"]
 groundDict = {
     "." : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "grassArt.png")), (25, 25)), 
     "," : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "snowArt.png")), (25, 25)),
-    "/" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "pathArt.png")), (25, 25)) 
+    "/" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "pathArt.png")), (25, 25)), 
+    "!" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "charredGroundArt.png")), (25, 25)) 
 
 }
 
@@ -86,9 +89,15 @@ obstacleDict = {
 
 
 }
+def loadDirectionalSprites(folder, fileName): #Image rotation results in loss of quality
+    sprites = [""]
+    for i in range(1, 5):
+        sprites.append(pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", folder, fileName + str(i) + ".png")), (25, 25)))
+    return sprites
+
 
 def isInConstraint(x, lower, upper):
-    if x >= 0 and x <= upper:
+    if x >= lower and x <= upper:
         return True
     else:
         return False
@@ -190,12 +199,17 @@ class Character(FreeMovingObstacle):
         else:
             return (gridPosX + 1, gridPosY + 1)
 
-    def slide(self, obstacleMap):
+    def slide(self, obstacleMap, mobs):
         middle = self.getGridPos(self.x + SQUARE_SIZE/2, self.y + SQUARE_SIZE/2, True)
         for i in range(3):
             if obstacleMap[middle[1]][middle[0]] == "I":
                 newX = self.x + movement[self.direction][0]
                 newY = self.y + movement[self.direction][1]
+
+                for mob in mobs:
+                    if mob != self:
+                        if self.isContactEntity(mob, newX, newY):
+                            return False
                 if self.isCollide(obstacleMap, newX, newY):
                     return False
                 else:
@@ -219,11 +233,11 @@ class Character(FreeMovingObstacle):
                 return True
         return False
 
-    def isContactEntity(self, entity):
-        location = self.getGridPos(self.x + SQUARE_SIZE/2, self.y + SQUARE_SIZE/2, False)
-        entityLocation = self.getGridPos(entity.x + SQUARE_SIZE/2, player.y + SQUARE_SIZE/2, False)
+    def isContactEntity(self, entity, movedX, movedY):
+        newPos = self.getGridPos(movedX + SQUARE_SIZE/2, movedY + SQUARE_SIZE/2, False)
+        entityLocation = self.getGridPos(entity.x + SQUARE_SIZE/2, entity.y + SQUARE_SIZE/2, False)
 
-        if isInConstraint(location[0], entityLocation[0] - 0.6, entityLocation[0] + 0.6) and isInConstraint(location[1], entityLocation[1] - 0.6, entityLocation[1] + 0.6):
+        if isInConstraint(newPos[0], entityLocation[0] - 1, entityLocation[0] + 1) and isInConstraint(newPos[1], entityLocation[1] - 1, entityLocation[1] + 1):
             return True
         else:
             return False
@@ -234,79 +248,87 @@ class NPC(Character):
     
 class Aggressive(NPC):
     path = []
-    index = 0
+    sprites = []
+    index = 1
+    pathAvailable = True
+    timeSinceLastSearch = 1
 
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction):
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
         NPC.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
+        self.level = level
+    
     def draw(self):
-        pygame.draw.rect(display, WHITE, (self.x, self.y, 25, 25), 0)
-  #  def hasLineOfSight(self, player):
-       # playerGridLocation = self.getGridPos(player.x + SQUARE_SIZE/2, player.y + SQUARE_SIZE/2)
-        #mobGridLocation = self.getGridPos(self.x + SQUARE_SIZE/2, self.y + SQUARE_SIZE/2)
-    def getPlayerPath(self, player, obstacleMap): #aStar algorithm
-        self.index = 0
-        end = player.getGridPos(player.x, player.y, True)
-        start = player.getGridPos(self.x, self.y, True)
+        display.blit(self.sprites[self.direction], (self.x, self.y))
 
-        openSet = set()
-        openList = []
-        closedSet = set()
+    def getPlayerPath(self, player, obstacleMap, mobs): #aStar algorithm
+        if(self.pathAvailable or self.timeSinceLastSearch % 50 == 0):
+            self.timeSinceLastSearch = 1
+            self.index = 1
+            end = player.getGridPos(player.x, player.y, True)
+            start = player.getGridPos(self.x, self.y, True)
 
-        openList.append(Node(0, 0, 0, None, start))
-        openSet.add(start)
+            openSet = set()
+            openList = []
+            closedSet = set()
 
-        minf = 100000
-        toCheckIndex = 0
+            openList.append(Node(0, 0, 0, None, start))
+            openSet.add(start)
 
-        while len(openSet) > 0:
-            #Finds node with smallest f value
-            for i, node in enumerate(openList):
-                if node.f < minf:
-                    minf = node.f
-                    toCheckIndex = i
-            
-            #Gets the current node
-            currentNode = openList.pop(toCheckIndex)
-            openSet.remove(currentNode.position)
-            closedSet.add(currentNode.position)
+            minf = 100000
+            toCheckIndex = 0
 
-            #Check if the node is the end
-            if currentNode.position == end:
-                currentCheckNode = currentNode
-                path = []
-                while(currentCheckNode.parent != None):
-                    path.insert(0, currentCheckNode.position)
-                    currentCheckNode = currentCheckNode.parent
-                path.insert(0, start)
+            while len(openSet) > 0:
+                #Finds node with smallest f value
+                for i, node in enumerate(openList):
+                    if node.f < minf:
+                        minf = node.f
+                        toCheckIndex = i
+                
+                #Gets the current node
+                currentNode = openList.pop(toCheckIndex)
+                openSet.remove(currentNode.position)
+                closedSet.add(currentNode.position)
 
-                self.path = path
-                return
+                #Check if the node is the end
+                if currentNode.position == end:
+                    currentCheckNode = currentNode
+                    path = []
+                    while(currentCheckNode.parent != None):
+                        path.insert(0, currentCheckNode.position)
+                        currentCheckNode = currentCheckNode.parent
+                    path.insert(0, start)
+                    self.pathAvailable = True
+                    self.path = path
+                    return
 
-            for i in movement[1:]:
-                newPos = (currentNode.position[0] + i[0], currentNode.position[1] + i[1])
-                #Makes sure it is in the map
-                if isInConstraint(newPos[0], 1, GRID_WIDTH) and isInConstraint(newPos[1], 1, GRID_HEIGHT):
-                    if obstacleMap[newPos[1]][newPos[0]] in moveableSpaces:
-                        if newPos in closedSet or newPos in openSet:
-                            continue
-                        else:
-                            g = currentNode.g + 1
-                            h = (currentNode.position[0] - newPos[0]) ** 2 + (currentNode.position[1] - newPos[1]) **2
-                            f = g+h
-                            openSet.add(newPos)
-                            openList.append(Node(f, g, h, currentNode, newPos))
-        self.path = []
+                for i in movement[1:]:
+                    newPos = (currentNode.position[0] + i[0], currentNode.position[1] + i[1])
+                    #Makes sure it is in the map
+                    if isInConstraint(newPos[0], 1, GRID_WIDTH) and isInConstraint(newPos[1], 1, GRID_HEIGHT):
+                        if obstacleMap[newPos[1]][newPos[0]] in moveableSpaces:
+                            if newPos in closedSet or newPos in openSet:
+                                continue
+                            else:
+                                g = currentNode.g + 1
+                                h = (currentNode.position[0] - newPos[0]) ** 2 + (currentNode.position[1] - newPos[1]) **2
+                                f = g+h
+                                openSet.add(newPos)
+                                openList.append(Node(f, g, h, currentNode, newPos))
+            self.path = []
+            self.pathAvailable = False
+        else:
+            self.timeSinceLastSearch += 1
 
     def moveToGridCoord(self, obstacleMap, gridX, gridY, mobs):
         screenPos = getScreenPos(gridX, gridY)  
         for i in range(self.speed):
-            if self.y < screenPos[1]:
+            if self.y < screenPos[1] and not self.isCollide(obstacleMap, self.x, self.y + 1):
                 self.direction = 3
-            elif self.x > screenPos[0]:
+            elif self.x > screenPos[0] and not self.isCollide(obstacleMap, self.x - 1, self.y):
                 self.direction = 4
-            elif self.y > screenPos[1]:
+            elif self.y > screenPos[1] and not self.isCollide(obstacleMap, self.x, self.y - 1):
                 self.direction = 1
-            elif self.x < screenPos[0]:
+            elif self.x < screenPos[0] and not self.isCollide(obstacleMap, self.x + 1, self.y):
                 self.direction = 2
             else:
                 return True
@@ -317,42 +339,45 @@ class Aggressive(NPC):
             if not self.isCollide(obstacleMap, newX, newY):
                 noEntityBlock = True
                 for mob in mobs:
-                    if self.isContactEntity(mob):
-                        noEntityBlock = False
+                    if mob != self:
+                        if self.isContactEntity(mob, newX, newY):
+                            noEntityBlock = False
                 if noEntityBlock:
                     self.x = newX
                     self.y = newY
-                
         return False
 
-    def moveToPlayer(self, player, obstacleMap, mpbs):
+    def moveToPlayer(self, player, obstacleMap, mobs):
         playerPos = self.getGridPos(self.x, self.y, True)
-        if not self.slide(obstacleMap) and self.index < len(self.path):
+        if not self.slide(obstacleMap, mobs) and self.index < len(self.path):
             if playerPos not in self.path:
                 return
             if self.moveToGridCoord(obstacleMap, self.path[self.index][0], self.path[self.index][1], mobs):
                 if self.index < len(self.path) - 1:
                     self.index += 1
         else:
-            self.getPlayerPath(player, obstacleMap)
-            if self.index < len(self.path) - 1:
-                self.index += 1
-
+            self.getPlayerPath(player, obstacleMap, mobs)
+ 
+    
 class Zombie(Aggressive):
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction):
-        Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
+    sprites = loadDirectionalSprites("zombie", "Zombie")
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
+        Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level)
 
-class Lizard(Aggressive):
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction):
-        Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
+class Book(Aggressive):
+    sprites = loadDirectionalSprites("Book", "Book")
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
+        Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level)
 
 class Slime(Aggressive):
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction):
-        Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
+    sprites = loadDirectionalSprites("slime", "Slime")
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
+        Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level)
 
 class Necromancer(Aggressive):
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction):
-        Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
+    sprites = loadDirectionalSprites("necromancer", "Necromancer")
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
+        Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level)
 
 class Passive(NPC):
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue):
@@ -379,21 +404,25 @@ class SellingVillager(Passive):
             
 
 class GivingVillager(Passive):
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items, gold):
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue, items):
         Passive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, sprites, dialogue)
         self.items = items
     def speak(self):
         drawTextBoxes(self.dialogue, 1000, BEIGE)
     
-    def giveItems(self, player):
-        if len(self.items) == 0:
-            drawTextBoxes("I have no more items to give you!", 1000, BEIGE)
+    def giveItem(self, player):
+        if(len(player.inventory) == player.maxInventorySize):
+            drawTextBoxes(["Throw out some items please"], 1000, BEIGE)
         else:
-            for i in self.items:
-                player.inventory.append(i)
-                drawTextBoxes("YOU GOT " + i.name + "!", 100, BEIGE)           
+            if len(self.items) == 0:
+                drawTextBoxes(["I have no more items to give you!"], 1000, BEIGE)
+            else:
+                for i in self.items:
+                    player.inventory.append(i)
+                    drawTextBoxes(["YOU GOT A " + i.name + "!"], 1000, BEIGE)           
 
 class Player(Character):
+    maxInventorySize = 8
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
         Character.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
         self.goldAmount = goldAmount
@@ -403,12 +432,11 @@ class Player(Character):
         self.activeEffects = activeEffects
 
 class PlayerMap(Player):
-    sprites = BLUE
+    sprites = loadDirectionalSprites("player", "Player")
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
         Player.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects)
-    def drawCharacter(self):
-        pygame.draw.rect(display, self.sprites,(self.x, self.y, 25, 25), 0)
-    
+    def draw(self):
+         display.blit(self.sprites[self.direction], (self.x, self.y))
     def goNewArea(self): #Returns 0 if player has not left area, otherwise returns the direction they left from (clockwise starting from top)
         cornerLocations = []
         cornerLocations.append(self.getGridPos(self.x, self.y, False))
@@ -428,8 +456,8 @@ class PlayerMap(Player):
                     return 4
         return 0
 
-    def getMovement(self, grid):
-        if not player.slide(currObstacleMap): 
+    def getMovement(self, grid, mobs):
+        if not player.slide(currObstacleMap, mobs): 
             newX = self.x
             newY = self.y
             for i in range(self.speed):
@@ -475,7 +503,7 @@ class PlayerMap(Player):
             elif currObstacleMap[spaceInfront[1]][spaceInfront[0]] == "C":
                 for c in chests:
                     if c.areaNumber == currentAreaNumber and c.gridX == spaceInfront[0] and c.gridY == spaceInfront[1]:
-                        c.giveItem(self.inventory)
+                        c.giveItem(self)
                         return False
             elif currObstacleMap[spaceInfront[1]][spaceInfront[0]] == "T":
                 currObstacleMap[spaceInfront[1]][spaceInfront[0]] = "."
@@ -491,11 +519,9 @@ class PlayerMap(Player):
                 for v in givingVillagers:
                     if v.areaNumber == currentAreaNumber and v.gridX == spaceInfront[0] and v.gridY == spaceInfront[1]:
                         v.speak()
-                        v.giveItem()
+                        v.giveItem(self)
                         return False
-                    
-
-
+                
 #Environmental obstacles 
 class GridRestrictedObstacle(GameObject):
     def __init__(self, areaNumber, gridX, gridY):
@@ -519,9 +545,18 @@ class Chest(Environmental):
         Environmental.__init__(self, areaNumber, gridX, gridY)
         self.items = items
         self.gold = gold
-    def giveItem(self, inventory):
-        for i in self.items:
-            inventory.append(i)
+    def giveItem(self, player):
+        if(len(player.inventory) == player.maxInventorySize):
+            drawTextBoxes(["Your bag is too heavy to take another item"], 1000, BEIGE)
+        else:
+            for i in self.items:
+                player.inventory.append(i)
+                drawTextBoxes(["YOU GOT " + i.name + "!"], 1000, BEIGE)  
+
+        if self.gold != 0:
+            player.goldAmount += self.gold
+            drawTextBoxes(["The chest had " + str(self.gold) + " gold!"], 1000, BEIGE)           
+            self.gold = 0
         self.items.clear()
 
 #Functions that load different parts of the game
@@ -549,7 +584,7 @@ def loadSigns():
     signs = []
     with open(os.path.join(cwd, "objectFiles", "signs.txt"), "r") as signFile:
         for line in signFile:
-            signInfo = line.split(" ")
+            signInfo = line.split(";")
             signs.append(Sign(int(signInfo[0]), int(signInfo[1]), int(signInfo[2]), signInfo[3].split("/")))
     return signs
 
@@ -557,14 +592,14 @@ def loadChests():
     chests = []
     with open(os.path.join(cwd, "objectFiles", "chests.txt"), "r") as chestFile:
         for line in chestFile:
-            chestInfo = line.split(" ")
+            chestInfo = line.split(";")
             chestItems = []
             
             chestItemNames = chestInfo[3].split("/")
             for i in chestItemNames:
                 chestItems.append(createWeapon(i))
 
-            chests.append(Chest(chestInfo[0], chestInfo[1], chestInfo[2], chestItems, int(chestInfo[4])))
+            chests.append(Chest(int(chestInfo[0]), int(chestInfo[1]), int(chestInfo[2]), chestItems, int(chestInfo[4])))
     return chests
 
 def loadSellingVillagers():
@@ -572,7 +607,7 @@ def loadSellingVillagers():
     with open(os.path.join(cwd, "objectFiles", "sellingVillagers.txt")) as sellingVillagerFile:
         for line in sellingVillagerFile:
             listOfStoreItems = []
-            vInfo = line.split(" ")
+            vInfo = line.split(";")
             allStoreItems = vInfo[8].split("/")
             for storeItem in allStoreItems:
                 storeItemInfo = storeItem.split(":")
@@ -585,22 +620,27 @@ def loadGivingVillagers():
     with open(os.path.join(cwd, "objectFiles", "givingVillagers.txt")) as givingVillagerFile:
         for line in givingVillagerFile:
             #Gets villager's dialogue
-            vInfo = line.split(" ")
+            vInfo = line.split(";")
             dialogue = vInfo[7].split("/")
             #Gets villager's items
             items = []
             for i in vInfo[8].split("/"):
                 items.append(createWeapon(i))
 
-            givingVillagers.append(GivingVillager(vInfo[0], vInfo[1], vInfo[2], vInfo[3], 0, 0, 0, 0, vInfo[4], "", dialogue, items, vInfo[9]))
+            givingVillagers.append(GivingVillager(vInfo[0], vInfo[1], vInfo[2], vInfo[3], 0, 0, 0, 0, vInfo[4], "", dialogue, items))
 
 def createWeapon(weaponName):
-    for i in range(2):
-        with open(os.path.join(cwd, "objectFiles", weaponFiles[i])) as weaponFile:
-            for line in weaponFile:
-                weaponInfo = line.split(" ")
-                if weaponInfo[0] == weaponName:
-                    return Sword(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, weaponArt[i], weaponInfo[2])))
+    with open(os.path.join(cwd, "objectFiles", "swordTypes.txt")) as swordFile:
+        for line in swordFile:
+            weaponInfo = line.split(";")
+            if weaponInfo[0] == weaponName:
+                return Sword(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, "art", "swordArt", weaponInfo[2])))
+    
+    with open(os.path.join(cwd, "objectFiles", "shieldTypes.txt")) as shieldFile:
+        for line in shieldFile:
+            weaponInfo = line.split(";")
+            if weaponInfo[0] == weaponName:
+                return Shield(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, "art", "shieldArt", weaponInfo[2])))
 
 def spawnMobs(player, obstacleMap): 
     mobs = []
@@ -609,32 +649,34 @@ def spawnMobs(player, obstacleMap):
     mobChances = spawnChances[player.areaNumber]
 
     if player.areaNumber == 3:
-        mobs.append(Necromancer(3, 300, 300, "Overlord", 500, 500, 20, 10, 3))
+        mobs.append(Necromancer(3, 700, 300, "Overlord", 500, 500, 20, 10, 3, 5))
     if spawnRates[player.areaNumber] == 0:
         return mobs
 
     playerLocation = player.getGridPos(player.x, player.y, True)
 
-    variance = randint(1, 3)
-    for i in range(spawnRates[player.areaNumber] + variance):
-        x = randint(3, GRID_WIDTH - 1)
-        y = randint(3, GRID_HEIGHT - 1)
-        #Checks if location is an obstacle or the player
-        if (obstacleMap[y][x] in moveableSpaces) and playerLocation != (x, y):
-            #Checks if location is another mob already
-            if not x in excludeX and not y in excludeY:
-                excludeX.append(x)
-                excludeY.append(y)
-                mobNumber = randint(1, 100)
-                mobLevel = randint(1, 3)
-                screenPos = getScreenPos(x, y)
-                
-                if mobNumber <= mobChances[0]:
-                    mobs.append(Zombie(player.areaNumber, screenPos[0], screenPos[1], "Zombie", 40 + mobLevel*3, 40 + mobLevel*3, 5+mobLevel, 5+mobLevel*2, 3))
-                elif mobNumber > mobChances[1] + mobChances[0] and mobNumber <= mobChances[2] + mobChances[1] + mobChances[0]:
-                    mobs.append(Slime(player.areaNumber, screenPos[0], screenPos[1], "Slime", 40 + mobLevel*3, 40 + mobLevel*3, 5+mobLevel, 5+mobLevel*2, 3))
-                else:
-                    mobs.append(Lizard(player.areaNumber, screenPos[0], screenPos[1], "Slime", 40 + mobLevel*3, 40 + mobLevel*3, 5+mobLevel, 5+mobLevel*2, 3))
+    for i in range(spawnRates[player.areaNumber]):
+        correctSpawn = False
+        while(not correctSpawn):
+            x = randint(3, GRID_WIDTH - 1)
+            y = randint(3, GRID_HEIGHT - 1)
+            #Checks if location is an obstacle or the player
+            if (obstacleMap[y][x] in moveableSpaces) and playerLocation != (x, y):
+                #Checks if location is another mob already
+                if not x in excludeX and not y in excludeY:
+                    correctSpawn = True
+                    excludeX.append(x)
+                    excludeY.append(y)
+                    mobNumber = randint(1, 100)
+                    mobLevel = randint(1, 3)
+                    screenPos = getScreenPos(x, y)
+                    
+                    if mobNumber <= mobChances[0]:
+                        mobs.append(Zombie(player.areaNumber, screenPos[0], screenPos[1], "Zombie", 40 + mobLevel*3, 40 + mobLevel*3, 1+mobLevel, 5+mobLevel*2, 3, mobLevel))
+                    elif mobNumber > mobChances[1] + mobChances[0] and mobNumber <= mobChances[2] + mobChances[1] + mobChances[0]:
+                        mobs.append(Slime(player.areaNumber, screenPos[0], screenPos[1], "Slime", 40 + mobLevel*3, 40 + mobLevel*3, 1+mobLevel, 5+mobLevel*2, 3, mobLevel))
+                    else:
+                        mobs.append(Book(player.areaNumber, screenPos[0], screenPos[1], "Book", 40 + mobLevel*3, 40 + mobLevel*3, 1+mobLevel, 5+mobLevel*2, 3, mobLevel))
     return mobs
 
 
@@ -661,72 +703,104 @@ mobs = spawnMobs(player, currObstacleMap)
 mobPathCounter = 0
 
 inPlay = True
+clock = pygame.time.Clock()
+
+startScreen = True
+mapScreen = False
+battle = False
+
+
+
 while(inPlay):
-    mobPathCounter += 1
-    
-    #If player is dead
-    if player.remainingHealth == 0:
-        display.fill(BLACK)
-        pygame.display.update()
-        pygame.time.wait(1000)
-        player.x = 275
-        player.y = 700
-        player.areaNumber = areaMap[areaNumberY][areaNumberX]
-        currGroundMap = getMap(player.areaNumber, groundAreas, "mapAreaGround")
-        currObstacleMap = getMap(player.areaNumber, obstacleAreas, "mapAreaObstacles")
-        background = getMapSurface(currGroundMap, currObstacleMap)
-        mobs = spawnMobs(player, currObstacleMap)
-    
-    display.fill(BLACK)
-    display.blit(background, (0, 0))
     eventQueue = pygame.event.get()
-
     for event in eventQueue:
-        if event.type == pygame.QUIT:
-            inPlay = False
-    #Character movement
-    player.getMovement(currObstacleMap)
-    player.drawCharacter()
+            if event.type == pygame.QUIT:
+                inPlay = False
+                
 
-    for i, mob in enumerate(mobs):
-        mob.draw()
-        if mobPathCounter % 20 == 0:
-            mob.getPlayerPath(player, currObstacleMap)
-        mob.moveToPlayer(player, currObstacleMap)
+    if startScreen:
+        display.fill(BLACK)
+        title = titleFont.render("CRYSTALNITE", 1, WHITE)
+        titleRect = title.get_rect(center = (WIDTH/2, 400))
+        start = textFont.render("Press space to start...", 1, WHITE)
+        startRect = start.get_rect(center = (WIDTH/2, 500))
+        display.blit(title, titleRect)
+        display.blit(start, startRect)
+        pygame.display.update()
+        for event in eventQueue:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    startScreen = False
+                    mapScreen = True
 
-    for event in eventQueue:
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                isUpdate = player.interactAndUpdate(player.areaNumber, currObstacleMap, signs, chests, givingVillagers)
-                if isUpdate:
-                    background = getMapSurface(currGroundMap, currObstacleMap)
-            break
+    #Death message
+    elif player.remainingHealth == 0:
+            display.fill(BLACK)
+            pygame.display.update()
+            pygame.time.wait(1000)
+            battle = False
+            mapScreen = True
+            player.x = 275
+            player.y = 700
+            player.areaNumber = areaMap[areaNumberY][areaNumberX]
+            currGroundMap = getMap(player.areaNumber, groundAreas, "mapAreaGround")
+            currObstacleMap = getMap(player.areaNumber, obstacleAreas, "mapAreaObstacles")
+            background = getMapSurface(currGroundMap, currObstacleMap)
+            mobs = spawnMobs(player, currObstacleMap)
 
-    #Loads in new map area or stays in current one
-    loadMapVal = player.goNewArea() 
-    if loadMapVal != 0:
-        if loadMapVal == 1:
-            areaNumberY -= 1
-            player.y = GRID_DIST_TOP + GRID_HEIGHT * SQUARE_SIZE - SQUARE_SIZE - 10
-        elif loadMapVal == 2:
-            areaNumberX += 1
-            player.x = WIDTH/2 - GRID_WIDTH*SQUARE_SIZE/2 + 10
-        elif loadMapVal == 3:
-            areaNumberY += 1
-            player.y = GRID_DIST_TOP + 10
-        elif loadMapVal == 4 :
-            areaNumberX-=1
-            player.x = WIDTH/2 + GRID_WIDTH*SQUARE_SIZE/2 - SQUARE_SIZE - 10 
-        
-        player.areaNumber = areaMap[areaNumberY][areaNumberX]
-        currGroundMap = getMap(player.areaNumber, groundAreas, "mapAreaGround")
-        currObstacleMap = getMap(player.areaNumber, obstacleAreas, "mapAreaObstacles")
-        background = getMapSurface(currGroundMap, currObstacleMap)
-        mobs = spawnMobs(player, currObstacleMap)
+    #If player is moving around the map
+    elif mapScreen:
+        mobPathCounter += 1
+        #If player is dead
+        display.fill(BLACK)
+        display.blit(background, (0, 0))
 
-    if mobPathCounter == 1000:
-            mobPathCounter = 0
-    pygame.display.update()
-    pygame.time.wait(5)
+        #Character movement
+        player.getMovement(currObstacleMap, mobs)
+        player.draw()
+
+        for i, mob in enumerate(mobs):
+            mob.draw()
+            if mobPathCounter % 30 == 0:
+                mob.getPlayerPath(player, currObstacleMap, mobs)
+            mob.moveToPlayer(player, currObstacleMap, mobs)
+            if mob.isContactEntity(player, mob.x, mob.y):
+                mobs.pop(i)
+
+        for event in eventQueue:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    isUpdate = player.interactAndUpdate(player.areaNumber, currObstacleMap, signs, chests, givingVillagers)
+                    if isUpdate:
+                        background = getMapSurface(currGroundMap, currObstacleMap)
+                break
+
+        #Loads in new map area or stays in current one
+        loadMapVal = player.goNewArea() 
+        if loadMapVal != 0:
+            if loadMapVal == 1:
+                areaNumberY -= 1
+                player.y = GRID_DIST_TOP + GRID_HEIGHT * SQUARE_SIZE - SQUARE_SIZE - 10
+            elif loadMapVal == 2:
+                areaNumberX += 1
+                player.x = WIDTH/2 - GRID_WIDTH*SQUARE_SIZE/2 + 10
+            elif loadMapVal == 3:
+                areaNumberY += 1
+                player.y = GRID_DIST_TOP + 10
+            elif loadMapVal == 4 :
+                areaNumberX-=1
+                player.x = WIDTH/2 + GRID_WIDTH*SQUARE_SIZE/2 - SQUARE_SIZE - 10 
+            
+            player.areaNumber = areaMap[areaNumberY][areaNumberX]
+            currGroundMap = getMap(player.areaNumber, groundAreas, "mapAreaGround")
+            currObstacleMap = getMap(player.areaNumber, obstacleAreas, "mapAreaObstacles")
+            background = getMapSurface(currGroundMap, currObstacleMap)
+            mobs = spawnMobs(player, currObstacleMap)
+
+        if mobPathCounter == 1000:
+                mobPathCounter = 0
+        pygame.display.update()
+    
+    clock.tick(70)
 
 pygame.quit()
