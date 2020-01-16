@@ -126,7 +126,7 @@ ironShieldDescription = smallFont.render("IRON SHIELD - ADDS 50 POINTS TO TOTAL 
 playerClicked = 0
 
 totalHealth = 100
-damage = 99
+damage = 0
 heal = 0
 
 # Class Calls
