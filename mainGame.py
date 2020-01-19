@@ -63,38 +63,39 @@ spawnRates = [0, 3, 3, 3, 3, 3, 3, 1, 3, 3]
 #Folder and file information
 groundAreas = ["", "mapAreaGround1.txt", "mapAreaGround2.txt", "mapAreaGround3.txt", "mapAreaGround4.txt", "mapAreaGround5.txt", "mapAreaGround6.txt", "mapAreaGround7.txt", "mapAreaGround8.txt", "mapAreaGround9.txt"]
 obstacleAreas = ["", "mapArea1.txt", "mapArea2.txt", "mapArea3.txt", "mapArea4.txt", "mapArea5.txt", "mapArea6.txt", "mapArea7.txt", "mapArea8.txt", "mapArea9.txt"]
-weaponFiles = ["swordTypes.txt", "shieldTypes.txt"]
-weaponArt = ["swordArt", "shieldArt"]
+weaponFiles = ["weaponTypes.txt", "shieldTypes.txt"]
+
+def loadTile(fileName, size):
+    pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "tileArt", fileName)), (size, size))
 
 #Tile images
 groundDict = {
-    "." : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "grassArt.png")), (25, 25)), 
-    "," : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "snowArt.png")), (25, 25)),
-    "/" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "pathArt.png")), (25, 25)), 
-    "!" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "charredGroundArt.png")), (25, 25)) 
-
+    "." : loadTile("grassArt.png", 25),
+    "," : loadTile("snowArt.png", 25),
+    "/" : loadTile("pathArt.png", 25),
+    "!" : loadTile("charredGroundArt.png", 25)
 }
 
 obstacleDict = {
-    "#" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "treeArt.png")), (50, 50)),
-    "%" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "waterArt.png")), (25, 25)),
-    "^" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "everGreenTreeArt.png")), (50, 50)),
-    "S" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "signArt.png")), (25, 25)),
-    "C" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "chestArt.png")), (25, 25)),
-    "T" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "smallTreeArt.png")), (25, 25)),
-    "O" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "moveableRockArt.png")), (25, 25)),
-    "I" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "iceArt.png")), (25, 25)),
-    "L" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "staticRockArt.png")), (50, 50)),
-    "B" : pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", "bushArt.png")), (25, 25))
-
-
+    "#" : loadTile("treeArt.png", 50),
+    "%" : loadTile("waterArt.png", 25),
+    "^" : loadTile("everGreenTreeArt.png", 50),
+    "S" : loadTile("signArt.png", 25),
+    "C" : loadTile("chestArt.png", 25),
+    "T" : loadTile("smallTreeArt.png", 25),
+    "O" : loadTile("moveableRockArt.png", 25),
+    "I" : loadTile("iceArt.png", 25),
+    "L" : loadTile("staticRockArt.png", 50),
+    "B" : loadTile("bushArt.png", 25)
 }
+
+#Game information
+bossDefeated = False
 def loadDirectionalSprites(folder, fileName): #Image rotation results in loss of quality
     sprites = [""]
     for i in range(1, 5):
         sprites.append(pygame.transform.scale(pygame.image.load(os.path.join(cwd, "art", folder, fileName + str(i) + ".png")), (25, 25)))
     return sprites
-
 
 def isInConstraint(x, lower, upper):
     if x >= lower and x <= upper:
@@ -109,7 +110,6 @@ def drawTextBoxes(text, delay, backgroundColour):
             if i+k <= len(text) - 1:
                 displayText = textFont.render(text[i+k].strip(), 1, BLACK)
                 display.blit(displayText, (175, 790 + k*30))
-            
         pygame.display.update()
         pygame.time.wait(delay)
 
@@ -117,7 +117,6 @@ def getScreenPos(gridX, gridY):
     screenX = gridX * SQUARE_SIZE - GRID_WIDTH*SQUARE_SIZE/2 + WIDTH/2 - SQUARE_SIZE
     screenY = gridY * SQUARE_SIZE + GRID_DIST_TOP - SQUARE_SIZE
     return (screenX, screenY)
-
 
 #Information container classes  
 class Node():
@@ -144,7 +143,6 @@ class Consumables(Item):
     def __init__(self, name, effect):
         Item.__init__(self, name, effect)
 
-
 class AttackPotion(Consumables):
     def __init__(self, name, effect, time):
         Consumables.__init__(self, name, effect)
@@ -157,18 +155,18 @@ class maxHealthPotion(Consumables):
     def __init__(self, name, effect):
         Consumables.__init__(self, name, effect)
 
-class Weapons(Item):
+class Equipable(Item):
     def __init__(self, name, effect, sprite):
         Item.__init__(self, name, effect)
         self.sprite = sprite
 
-class Shield(Weapons):
+class Shield(Equipable):
     def __init__(self, name, effect, sprite):
-        Weapons.__init__(self, name, effect, sprite)
+        Equipable.__init__(self, name, effect, sprite)
     
-class Sword(Weapons):
+class Weapon(Equipable):
     def __init__(self, name, effect, sprite):
-        Weapons.__init__(self, name, effect, sprite)
+        Equipable.__init__(self, name, effect, sprite)
 
 class GameObject():
     def __init__(self, areaNumber):
@@ -423,18 +421,18 @@ class GivingVillager(Passive):
 
 class Player(Character):
     maxInventorySize = 8
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeWeapon, activeShield, activeEffects):
         Character.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
         self.goldAmount = goldAmount
         self.inventory = inventory
-        self.activeSword = activeSword
+        self.activeWeapon = activeWeapon
         self.activeShield = activeShield
         self.activeEffects = activeEffects
 
 class PlayerMap(Player):
     sprites = loadDirectionalSprites("player", "Player")
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects):
-        Player.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeSword, activeShield, activeEffects)
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeWeapon, activeShield, activeEffects):
+        Player.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeWeapon, activeShield, activeEffects)
     def draw(self):
          display.blit(self.sprites[self.direction], (self.x, self.y))
     def goNewArea(self): #Returns 0 if player has not left area, otherwise returns the direction they left from (clockwise starting from top)
@@ -608,11 +606,12 @@ def loadSellingVillagers():
         for line in sellingVillagerFile:
             listOfStoreItems = []
             vInfo = line.split(";")
-            allStoreItems = vInfo[8].split("/")
+            dialogue = vInfo[6].split("/")
+            allStoreItems = vInfo[7].split("/")
             for storeItem in allStoreItems:
                 storeItemInfo = storeItem.split(":")
                 listOfStoreItems.append(StoreItem(createWeapon(storeItemInfo[0]), storeItemInfo[1], storeItemInfo[2]))
-            
+            sellingVillagers.append(SellingVillager(vInfo[0], vInfo[1], vInfo[2], vInfo[3], 0, 0, 0, 0, vInfo[4], vInfo[5], dialogue, listOfStoreItems))
     return sellingVillagers
 
 def loadGivingVillagers():
@@ -621,26 +620,25 @@ def loadGivingVillagers():
         for line in givingVillagerFile:
             #Gets villager's dialogue
             vInfo = line.split(";")
-            dialogue = vInfo[7].split("/")
+            dialogue = vInfo[6].split("/")
             #Gets villager's items
             items = []
-            for i in vInfo[8].split("/"):
+            for i in vInfo[7].split("/"):
                 items.append(createWeapon(i))
-
-            givingVillagers.append(GivingVillager(vInfo[0], vInfo[1], vInfo[2], vInfo[3], 0, 0, 0, 0, vInfo[4], "", dialogue, items))
+            givingVillagers.append(GivingVillager(vInfo[0], vInfo[1], vInfo[2], vInfo[3], 0, 0, 0, 0, vInfo[4], vInfo[5], dialogue, items))
 
 def createWeapon(weaponName):
-    with open(os.path.join(cwd, "objectFiles", "swordTypes.txt")) as swordFile:
-        for line in swordFile:
+    with open(os.path.join(cwd, "objectFiles", "weaponTypes.txt")) as weaponFile:
+        for line in weaponFile:
             weaponInfo = line.split(";")
             if weaponInfo[0] == weaponName:
-                return Sword(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, "art", "swordArt", weaponInfo[2])))
+                return Weapon(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, "art", "weaponArt", weaponInfo[2].strip())))
     
     with open(os.path.join(cwd, "objectFiles", "shieldTypes.txt")) as shieldFile:
         for line in shieldFile:
             weaponInfo = line.split(";")
             if weaponInfo[0] == weaponName:
-                return Shield(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, "art", "shieldArt", weaponInfo[2])))
+                return Shield(weaponInfo[0], weaponInfo[1], pygame.image.load(os.path.join(cwd, "art", "shieldArt", weaponInfo[2].strip())))
 
 def spawnMobs(player, obstacleMap): 
     mobs = []
@@ -648,7 +646,7 @@ def spawnMobs(player, obstacleMap):
     excludeY = []
     mobChances = spawnChances[player.areaNumber]
 
-    if player.areaNumber == 3:
+    if player.areaNumber == 3 and not bossDefeated:
         mobs.append(Necromancer(3, 700, 300, "Overlord", 500, 500, 20, 10, 3, 5))
     if spawnRates[player.areaNumber] == 0:
         return mobs
@@ -709,8 +707,6 @@ startScreen = True
 mapScreen = False
 battle = False
 
-
-
 while(inPlay):
     eventQueue = pygame.event.get()
     for event in eventQueue:
@@ -765,6 +761,8 @@ while(inPlay):
                 mob.getPlayerPath(player, currObstacleMap, mobs)
             mob.moveToPlayer(player, currObstacleMap, mobs)
             if mob.isContactEntity(player, mob.x, mob.y):
+                if mob.name == "Overlord":
+                    bossDefeated = True
                 mobs.pop(i)
 
         for event in eventQueue:
@@ -802,5 +800,4 @@ while(inPlay):
         pygame.display.update()
     
     clock.tick(70)
-
 pygame.quit()

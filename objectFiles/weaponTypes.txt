@@ -1,0 +1,3 @@
+Wooden Sword;5;woodenSword.png
+Iron Sword;8;ironSword.png
+fireSword;12;fireSword.png

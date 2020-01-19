@@ -1,1 +1,0 @@
-Wooden Sword;5;woodenSword.png
