@@ -117,16 +117,16 @@ tier1StrengthPotionDescription = smallFont.render("TIER I STRENGTH POTION - ADDS
 tier1SpeedPotionDescription = smallFont.render("TIER I SPEED POTION - ADDS +1 MOVEMENT SPEED", 1, white)
 woodShieldDescription = smallFont.render("WOOD SHIELD - ADDS 20 POINTS TO TOTAL HEALTH", 1, white)
 
-tier2HealthPotionDescription = smallFont.render("TIER I HEALTH POTION - HEALS 50 POINTS OF DAMAGE", 1, white)
-tier2StrengthPotionDescription = smallFont.render("TIER I STRENGTH POTION - ADDS 10 POINTS OF DAMAGE", 1, white)
-tier2SpeedPotionDescription = smallFont.render("TIER I SPEED POTION - ADDS +3 MOVEMENT SPEED", 1, white)
+tier2HealthPotionDescription = smallFont.render("TIER II HEALTH POTION - HEALS 50 POINTS OF DAMAGE", 1, white)
+tier2StrengthPotionDescription = smallFont.render("TIER II STRENGTH POTION - ADDS 10 POINTS OF DAMAGE", 1, white)
+tier2SpeedPotionDescription = smallFont.render("TIER II SPEED POTION - ADDS +3 MOVEMENT SPEED", 1, white)
 ironShieldDescription = smallFont.render("IRON SHIELD - ADDS 50 POINTS TO TOTAL HEALTH", 1, white)
 
 # Variables
 playerClicked = 0
 
-totalHealth = player.remainingHealth
-damage = 0
+totalHealth = 100
+damage = 99
 heal = 0
 
 # Class Calls

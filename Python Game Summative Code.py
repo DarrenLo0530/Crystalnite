@@ -8,7 +8,7 @@
 import pygame
 
 pygame.init()
-width = 600
+width = 800
 height = 600
 gameWindow = pygame.display.set_mode((width,height)) #Screen Size
 
@@ -33,39 +33,51 @@ outline = 0
 playGame = True
 
 gameWindow.fill(GREEN)
-#gameWindow.fill(GREEN)
+
+
 while playGame:
     pygame.display.update()
+    for event in pygame.event.get():  
 
 #Inventory
-    pygame.event.clear()
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT]:
-        
-        print("left pressed")
-        pygame.draw.rect(gameWindow,BLACK,(100,100,320,300))
-        pygame.draw.rect(gameWindow,WHITE,(130,120,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(200,120,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(270,120,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(340,120,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(130,190,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(200,190,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(270,190,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(340,190,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(130,260,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(200,260,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(270,260,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(340,260,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(130,330,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(200,330,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(270,330,50,50))
-        pygame.draw.rect(gameWindow,WHITE,(340,330,50,50))
-        
+        pygame.event.clear()
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LSHIFT]:
 
-    elif keys[pygame.K_ESCAPE]:
+        
+            pygame.draw.rect(gameWindow,DARKGREY,(0,0,width,height))
 
-        print("esc pressed")
-        gameWindow.fill(GREEN)
+            inventory = font2.render("Inventory",1,RED,)
+            gameWindow.blit(inventory,(320,100))
+
+            pygame.draw.rect(gameWindow,BLACK,(150,150,500,500))
+            box1 = pygame.draw.rect(gameWindow,WHITE,(180,170,75,75))
+            box2 = pygame.draw.rect(gameWindow,WHITE,(300,170,75,75))
+            box3 = pygame.draw.rect(gameWindow,WHITE,(420,170,75,75))
+            box4 = pygame.draw.rect(gameWindow,WHITE,(540,170,75,75))
+            box5 = pygame.draw.rect(gameWindow,WHITE,(180,270,75,75))
+            box6 = pygame.draw.rect(gameWindow,WHITE,(300,270,75,75))
+            box7 = pygame.draw.rect(gameWindow,WHITE,(420,270,75,75))
+            box8 = pygame.draw.rect(gameWindow,WHITE,(540,270,75,75))
+            box9 = pygame.draw.rect(gameWindow,WHITE,(180,370,75,75))
+            box10 = pygame.draw.rect(gameWindow,WHITE,(300,370,75,75))
+            box11 = pygame.draw.rect(gameWindow,WHITE,(420,370,75,75))
+            box12 = pygame.draw.rect(gameWindow,WHITE,(540,370,75,75))
+            box13 = pygame.draw.rect(gameWindow,WHITE,(180,470,75,75))
+            box14 = pygame.draw.rect(gameWindow,WHITE,(300,470,75,75))
+            box15 = pygame.draw.rect(gameWindow,WHITE,(420,470,75,75))
+            box16 = pygame.draw.rect(gameWindow,WHITE,(540,470,75,75))
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+                print (" pressed mouse button  :",event.button)
+        elif event.type == pygame.MOUSEBUTTONUP:
+                print ("released mouse button  :",event.button)
+        elif event.type == pygame.MOUSEMOTION:
+                print (" current mouse location:",pygame.mouse.get_pos())
+
+        elif keys[pygame.K_ESCAPE]:
+
+            gameWindow.fill(GREEN)
         
 
 
