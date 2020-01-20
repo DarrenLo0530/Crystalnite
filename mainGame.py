@@ -246,10 +246,70 @@ class FreeMovingObject():
         self.y = y
 
 class Projectile(FreeMovingObject):
-    def __init__(self, x, y, sizeX, sizeY):
+    def __init__(self, x, y, sizeX, sizeY, speed):
         FreeMovingObject.__init__(self, x, y)
         self.sizeX = sizeX
         self.sizeY = sizeY
+        self.speed = speed
+
+    def isContact(self, player):
+        playerCornerLocations = []
+        playerCornerLocations.append((player.x, player.y))
+        playerCornerLocations.append((player.x + 50, player.y))
+        playerCornerLocations.append((player.x, player.y + 50))
+        playerCornerLocations.append((player.x + 50, player.y + 50))
+
+        for i in playerCornerLocations:
+            if self.x <= i[0] <= self.x + self.sizeX and self.y <= i[1] <= self.y + self.sizeY:
+                return True
+        return False
+
+    def draw(self):
+        display.blit(self.sprite, (self.x, self.y))     
+
+class ZombieProjectile(Projectile):
+    def __init__(self, x, y, sizeX, sizeY, speed):
+        Projectile.__init__(self, x, y, sizeX, sizeY, speed)
+        self.destX = 0 - self.sizeX
+        self.sprite = loadTile("zombieProj.png", self.sizeX, self.sizeY)
+
+    def move(self):
+        self.x -= self.speed
+
+    def finished(self):
+        if self.x < self.destX:
+            return True
+        return False
+
+class BookProjectile(Projectile):
+    def __init__(self, x, y, sizeX, sizeY, speed):
+        Projectile.__init__(self, x, y, sizeX, sizeY, speed)
+        self.destX = 0 - self.sizeX
+        self.sprite = loadTile("bookProj.png", self.sizeX, self.sizeY)
+
+    def finished(self):
+        if self.x < self.destX:
+            return True
+    
+    def move(self):
+        self.x -= self.speed
+
+class SlimeProjectile(Projectile):
+    def __init__(self, x, y, sizeX, sizeY, speed):
+        Projectile.__init__(self, x, y, sizeX, sizeY, speed)
+        self.destY = 600
+        self.sprite = loadTile("slimeProj.png", self.sizeX, self.sizeY)
+
+    def finished(self):
+        if self.y == self.destY:
+            return True
+        return False
+
+    def move(self):
+        for i in range(self.speed):
+            if self.finished():
+                return
+            self.y += 1
 
 class GridRestrictedObject():
     def __init__(self, gridX, gridY):
@@ -265,6 +325,14 @@ class Character(GameObject):
         self.speed = speed
         self.attack = attack
         self.direction = direction
+
+    def displayHealthBar(self, surface, topLeftX, topLeftY, length, unfilledColour, textColour):
+        percentageFilled = round(self.remainingHealth/self.maxHealth * length)
+        healthData = textFont.render(str(self.remainingHealth) + "/" + str(self.maxHealth), 1, textColour)
+        pygame.draw.rect(surface, unfilledColour, (topLeftX, topLeftY, length, 20), 0)
+        pygame.draw.rect(surface, RED, (topLeftX, topLeftY, percentageFilled, 20), 0)
+        pygame.draw.rect(surface, BLACK, (topLeftX, topLeftY, length, 20), 2)
+        surface.blit(healthData, (topLeftX + length + 10, topLeftY - 5))
 
 class MovingCharacter(FreeMovingObject, Character):
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction):
@@ -342,6 +410,7 @@ class Aggressive(MovingCharacter):
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
         MovingCharacter.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction)
         self.level = level
+        self.percentRun = self.level * 30
     
     def draw(self):
         display.blit(self.sprites[self.direction], (self.x, self.y))
@@ -456,22 +525,55 @@ class Zombie(Aggressive):
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
         Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level)
     
+    def loadProjectiles(self):
+        projectiles = []
+        projectiles.append(ZombieProjectile(randint(1400, 1500), 500, 250, 100, self.level + 2))
+        return projectiles
+    
 class Book(Aggressive):
     sprites = loadDirectionalSprites("Book", "Book")
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
         Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level)
-    
-                
+
+    def loadProjectiles(self):
+        projectiles = []
+        for i in range(2 * self.level):
+            size = randint(45, 55)
+            projectiles.append(BookProjectile(randint(1400, 1600), randint(100, 550), size, size, self.level + randint(1, 5)))
+        return projectiles
             
 class Slime(Aggressive):
     sprites = loadDirectionalSprites("slime", "Slime")
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
         Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level)
 
+    def loadProjectiles(self):
+        projectiles = []
+        for i in range(2 * self.level):
+            size = randint(45, 55)
+            projectiles.append(SlimeProjectile(randint(300, 1050), randint(50, 100), size, size, self.level + randint(1, 3)))
+        return projectiles
+
 class Necromancer(Aggressive):
     sprites = loadDirectionalSprites("necromancer", "Necromancer")
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
         Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level)
+    def loadProjectiles(self):
+        projectiles = []
+        attack = randint(1, 3)
+
+        #Loads one of the three attacks
+        if attack == 1:
+            for i in range(self.level):
+                size = randint(45, 65)
+                projectiles.append(SlimeProjectile(randint(300, 1050), randint(50, 100), size, size, self.level))
+        elif attack == 2:
+            for i in range(self.level):
+                size = randint(45, 65)
+                projectiles.append(BookProjectile(randint(1400, 1600), randint(100, 550), size, size, self.level))
+        else:
+            projectiles.append(ZombieProjectile(randint(1400, 1500), 500, 300, 125, self.level))
+        return projectiles
 
 class Villager(StaticCharacter):
     def __init__(self, areaNumber, gridX, gridY, name, remainingHealth, maxHealth, speed, attack, direction, dialogue):
@@ -576,13 +678,6 @@ class Player(MovingCharacter):
         self.activeWeapon = activeWeapon
         self.activeShield = activeShield    
         self.addDamage = addDamage
-
-    def displayHealthBar(self, surface, topLeftX, topLeftY, length):
-        percentageFilled = round(self.remainingHealth/self.maxHealth * length)
-        healthData = textFont.render(str(self.remainingHealth) + "/" + str(self.maxHealth), 1, BLACK)
-        pygame.draw.rect(surface, RED, (topLeftX, topLeftY, percentageFilled, 20), 0)
-        pygame.draw.rect(surface, BLACK, (topLeftX, topLeftY, 150, 20), 2)
-        surface.blit(healthData, (topLeftX + length + 10, topLeftY - 5))
 
     def displayInventory(self, inBattle):
         #Gets inventory background
@@ -833,7 +928,7 @@ class PlayerMap(Player):
         newHotBarSurface.blit(goldText, (250, 10))
 
         #Displays health bar
-        self.displayHealthBar(newHotBarSurface, 220, 60, 150)
+        self.displayHealthBar(newHotBarSurface, 220, 60, 150, WHITE, BLACK)
         self.hotBarSurface = newHotBarSurface
             
     def drawHotBar(self, events, inBattle):
@@ -844,14 +939,16 @@ class PlayerMap(Player):
 
 #Player battle container is not completley related to the player
 class PlayerBattle(Player):
+    jumpCounter = 0
+    gravityCounter = 0
     sprite = loadTile("heart.png", 50, 50)
     def __init__(self, playerMap):
         self.areaNumber = None
-        self.x = 300
-        self.y = 300
+        self.x = 700
+        self.y = 550
         self.direction = None
         self.goldAmount = playerMap.goldAmount
-        self.speed = playerMap.speed
+        self.speed = playerMap.speed - 2
         self.attack = playerMap.attack
         self.remainingHealth = playerMap.remainingHealth  
         self.maxHealth = playerMap.maxHealth
@@ -860,25 +957,50 @@ class PlayerBattle(Player):
         self.activeShield = playerMap.activeShield
         self.addDamage = playerMap.addDamage
         
-    def getMovement(self):
+    def getMovement(self, gravity):
         newX = self.x
         newY = self.y
         for i in range(self.speed):
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_RIGHT] or keys[pygame.K_LEFT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
-                if keys[pygame.K_RIGHT]:
-                    self.direction = 2
-                elif keys[pygame.K_LEFT]:
-                    self.direction = 4
-                elif keys[pygame.K_UP]:
-                    self.direction = 1
-                elif keys[pygame.K_DOWN]:
-                    self.direction = 3
-                newX += movement[self.direction][0]
-                newY += movement[self.direction][1]
-            if newX >= 200 and newX <= 800 and newY >= 200 and newY >= 800:
+            if keys[pygame.K_RIGHT]:
+                newX += 1
+            elif keys[pygame.K_LEFT]:
+                newX -= 1
+        
+            if not gravity:
+                if keys[pygame.K_UP]:
+                    newY -= 1
+                if keys[pygame.K_DOWN]:
+                    newY += 1
+                if newY >= 100 and newY <= 550:
+                    self.y = newY
+
+            if newX >= 300 and newX <= 1050:
                 self.x = newX
+                
+        if gravity:
+            #If the character should still be rising
+            if self.jumpCounter < 50 and self.jumpCounter != 0:
+                self.y -= 4
+                self.jumpCounter += 1
+            #If character has reached peak
+            elif self.jumpCounter == 50:
+                self.jumpCounter = 0
+            #If character tries to jump
+            if keys[pygame.K_UP] and self.y == 550:
+                self.jumpCounter = 1
+            #If character is in mid air
+            if self.y != 550:
+                newY = self.y
+                for i in range(round(self.gravityCounter**2/7500)):
+                    newY += 1
+                    if newY == 550:
+                        self.gravityCounter = 0
+                        break
                 self.y = newY
+                if newY != 550:
+                    self.gravityCounter += 1
+
     def draw(self):
         display.blit(self.sprite, (self.x, self.y))
 
@@ -1033,6 +1155,7 @@ def spawnMobs(player, obstacleMap):
 
     if player.areaNumber == 3 and not bossDefeated:
         mobs.append(Necromancer(3, 700, 300, "Overlord", 500, 500, 20, 10, 3, 5))
+
     if spawnRates[player.areaNumber] == 0:
         return mobs
 
@@ -1062,7 +1185,12 @@ def spawnMobs(player, obstacleMap):
                         mobs.append(Book(player.areaNumber, screenPos[0], screenPos[1], "Book", 40 + mobLevel*3, 40 + mobLevel*3, 1+mobLevel, 5+mobLevel*2, 3, mobLevel))
     return mobs
 
-
+def updateAfterBattle(currentMobBattle, playerBattle, player, victory):
+    player.inventory = battlingPlayer.inventory
+    player.remainingHealth = battlingPlayer.remainingHealth
+    if victory:
+        player.goldAmount += currentMobBattle.level * 25
+    player.loadHotBar()
 
 ########################################################################################################################################
 #Initializing player character
@@ -1120,22 +1248,24 @@ while(inPlay):
         pygame.display.update()
 
     #Death screen
-    elif player.remainingHealth == 0:
-            display.fill(BLACK)
-            deathMessage = titleFont.render("YOU DIED", 1, DARK_RED)
-            deathRect = deathMessage.get_rect(center = (WIDTH/2, HEIGHT/2))
-            display.blit(deathMessage, deathRect)
-            pygame.display.update()
-            pygame.time.wait(1000)
-            inMap = True
-            inBattle = False
-            player.x = 275
-            player.y = 700
-            player.areaNumber = areaMap[areaNumberY][areaNumberX]
-            currGroundMap = getMap(player.areaNumber, groundAreas, "mapAreaGround")
-            currObstacleMap = getMap(player.areaNumber, obstacleAreas, "mapAreaObstacles")
-            background = getMapSurface(currGroundMap, currObstacleMap, givingVillagers, sellingVillagers)
-            mobs = spawnMobs(player, currObstacleMap)
+    elif player.remainingHealth <= 0:
+        display.fill(BLACK)
+        deathMessage = titleFont.render("YOU DIED", 1, DARK_RED)
+        deathRect = deathMessage.get_rect(center = (WIDTH/2, HEIGHT/2))
+        display.blit(deathMessage, deathRect)
+        pygame.display.update()
+        pygame.time.wait(1000)
+        inMap = True
+        inBattle = False
+        player.x = 275
+        player.y = 700
+        player.remainingHealth = player.maxHealth
+        player.areaNumber = areaMap[areaNumberY][areaNumberX]
+        player.loadHotBar()
+        currGroundMap = getMap(player.areaNumber, groundAreas, "mapAreaGround")
+        currObstacleMap = getMap(player.areaNumber, obstacleAreas, "mapAreaObstacles")
+        background = getMapSurface(currGroundMap, currObstacleMap, givingVillagers, sellingVillagers)
+        mobs = spawnMobs(player, currObstacleMap)
 
     #If player is moving around the map(main game)
     elif inMap:
@@ -1155,8 +1285,6 @@ while(inPlay):
             mob.moveToPlayer(player, currObstacleMap, mobs)
             if mob.isContactEntity(player, mob.x, mob.y):
                 #Makes sure boss never respawns
-                if mob.name == "Overlord":
-                    bossDefeated = True
                 currentMobBattle = mobs.pop(i)
                 inBattle = True
                 inMap = False
@@ -1211,34 +1339,76 @@ while(inPlay):
             events = pygame.event.get()
             checkIfExitGame(events)
 
-            if battlingPlayer.remainingHealth == 0:
-                battling = False
-            battlingPlayer.displayHealthBar(display, 300, 300, 200)
             display.blit(battleSurface, (0, 0))
+            battlingPlayer.displayHealthBar(display, 250, 650, 300, WHITE, WHITE)
+            battlingPlayer.x = 700
+            battlingPlayer.jumpCounter = 0
+            battlingPlayer.gravityCounter = 0
+            battlingPlayer.y = 550
+            currentMobBattle.displayHealthBar(display, 850, 650, 300, WHITE, WHITE)
             attackButton.draw()
             inventoryButton.draw()
             runButton.draw()
+            battlingPlayer.draw()
 
             if playerMove:
                 if attackButton.isLeftClicked(events):
+                    currentMobBattle.remainingHealth -= battlingPlayer.attack
+                    if currentMobBattle.remainingHealth <= 0:
+                        battling = False
+                        if currentMobBattle.name == "Overlord":
+                            bossDefeated = True
+                        updateAfterBattle(currentMobBattle, battlingPlayer, player, True)
+                        
                     playerMove = False
                 elif runButton.isLeftClicked(events):
-                    percentRun = currentMobBattle.level * 30
                     number = randint(1, 100)
-                    if number > 0:
+                    if number > currentMobBattle.percentRun:
                         battling = False
+                        updateAfterBattle(currentMobBattle, battlingPlayer, player, False)
                     else:
                         playerMove = False
                 elif inventoryButton.isLeftClicked(events):
                     battlingPlayer.displayInventory(True)
             else:
-                display.fill(BLACK)
-                display.blit(battleSurface, (0, 0))
+                projectiles = currentMobBattle.loadProjectiles()
+                gravity = False
+                if projectiles[0].__class__.__name__  == "ZombieProjectile":
+                    gravity = True               
+                timer = pygame.time.get_ticks()
+                while(not playerMove):
+                    events = pygame.event.get()
+
+                    secondsPassed = (pygame.time.get_ticks()-timer)/1000 
+                    if secondsPassed > 8 or len(projectiles) == 0:
+                        playerMove = True
+
+                    if battlingPlayer.remainingHealth <= 0:
+                        battling = False
+                        updateAfterBattle(currentMobBattle, battlingPlayer, player, False)
+                        break
+
+                    display.blit(battleSurface, (0, 0))
+                    battlingPlayer.displayHealthBar(display, 250, 650, 300, WHITE, WHITE)
+                    currentMobBattle.displayHealthBar(display, 850, 650, 300, WHITE, WHITE)
+                    battlingPlayer.getMovement(gravity)
+                    battlingPlayer.draw()
+
+                    for i, projectile in enumerate(projectiles):
+                        projectile.draw()
+                        if projectile.isContact(battlingPlayer):
+                            battlingPlayer.remainingHealth -= currentMobBattle.level * 4
+                            projectiles.pop(i)
+
+                        if projectile.finished():
+                            projectiles.pop(i)
+                        projectile.move()
+                    pygame.display.update()
+
             pygame.display.update()
         
-
         inBattle = False
         inMap = True
 
-    clock.tick(70)
+    clock.tick(60)
 pygame.quit()
