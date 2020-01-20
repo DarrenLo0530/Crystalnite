@@ -77,7 +77,6 @@ while inPlay:
     pygame.draw.rect(gameWindow, white, (5, 125, 790, 470), 5) 
     gameWindow.blit(newImage, (xPos, yPos))
     for i in emptyList:
-        print(zombie.mobType, zombie.numberOfProjectiles, zombie.projX, zombie.projY, zombie.projLength, zombie.projWidth, zombie.shift, zombie.direction)
         zombie.createProjectile()
     getHealth(totalHealth, damage, heal, 50, 100, 300, 10, darkRed, red)
     pygame.display.update()
