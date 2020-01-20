@@ -10,13 +10,9 @@
 T = Cuttable Trees
 S = Sign
 C = Chest
-M = Moving Rock
+O = Moving Rock
+K = Rock
+L = Small Tree
 
-B = Buying Villager
+$ = Selling Villager
 G = Giving Villager
-
-
-W = Wizard
-Z = Zombie
-L = Lizard
-N = Necromancer

@@ -30,6 +30,7 @@ BEIGE = (207, 185, 151)
 DARK_RED = (124, 10, 2)
 FOREST_GREEN = (11, 102, 35)
 OLIVE_GREEN = (96, 168, 48)
+GREY = (169, 169, 169)
 DARK_BEIGE = (169, 149, 123)
 
 #Fonts
@@ -135,7 +136,7 @@ def getScreenPos(gridX, gridY):
     return (screenX, screenY)
 
 def textToBool(text):
-    if text == "True":
+    if text.strip() == "True":
         return True
     else:
         return False
@@ -192,6 +193,15 @@ class Button:
                     if self.isHovered():
                         return True
                     return False
+
+    def isRightClicked(self, events):
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 3:
+                    if self.isHovered():
+                        return True
+                    return False
+
 
 
 #Item classes
@@ -450,16 +460,7 @@ class Book(Aggressive):
     sprites = loadDirectionalSprites("Book", "Book")
     def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level):
         Aggressive.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, level)
-    def attack(playerBattle):
-        projectiles = []
-        timer = pygame.time.get_ticks()
-        attacking = True
-        attackCounter = 0
-        while(attacking):
-            secondsPassed = (pygame.time.get_ticks()-timer)/1000 
-            if secondsPassed > self.level + 5:
-                attacking = False
-            if attackCounter % round(15/playerLevel) == 0:
+    
                 
             
 class Slime(Aggressive):
@@ -545,7 +546,7 @@ class SellingVillager(Villager):
                         self.store[i].stock -= 1
                         drawTextBoxes(["Thanks for buying!", "Here's your "  + self.store[i].item.name], 500, BEIGE, self.name)
                     else:
-                        drawTextBoxes(["That's way too expensive!"], 500, BEIGE, "(Thinking to yourself)")
+                        drawTextBoxes(["I can't purchase this right now!"], 500, BEIGE, "(Thinking to yourself)")
             pygame.display.update()
 
 
@@ -575,7 +576,14 @@ class Player(MovingCharacter):
         self.activeWeapon = activeWeapon
         self.activeShield = activeShield    
         self.addDamage = addDamage
-    
+
+    def displayHealthBar(self, surface, topLeftX, topLeftY, length):
+        percentageFilled = round(self.remainingHealth/self.maxHealth * length)
+        healthData = textFont.render(str(self.remainingHealth) + "/" + str(self.maxHealth), 1, BLACK)
+        pygame.draw.rect(surface, RED, (topLeftX, topLeftY, percentageFilled, 20), 0)
+        pygame.draw.rect(surface, BLACK, (topLeftX, topLeftY, 150, 20), 2)
+        surface.blit(healthData, (topLeftX + length + 10, topLeftY - 5))
+
     def displayInventory(self, inBattle):
         #Gets inventory background
         inventorySurface = pygame.Surface((600, 600)).convert_alpha()
@@ -612,16 +620,25 @@ class Player(MovingCharacter):
                 for k in range(4):
                     if i*4 + k < len(self.inventory):
                         if allButtons[i][k].isHovered():
-                            itemName = textFont.render(self.inventory[i*4 + k].name, 1, BLACK)
-                            
+                            currItem = self.inventory[i*4 + k]
+                            itemName = textFont.render(currItem.name, 1, BLACK)
+                            className = self.inventory[i*4 + k].__class__.__name__
+
                             if k < 2:
                                 itemRect = itemName.get_rect(topleft = (430 + k*155, 170 + i*130))
-                                pygame.draw.rect(display, WHITE, itemRect, 0)
-                                display.blit(itemName, itemRect)
                             else:
                                 itemRect = itemName.get_rect(topright = (430 + k*155, 170 + i*130))
-                                pygame.draw.rect(display, WHITE, itemRect, 0)
-                                display.blit(itemName, itemRect)
+                            pygame.draw.rect(display, WHITE, itemRect, 0)
+                            display.blit(itemName, itemRect)
+                            pygame.draw.rect(display, GREY, (itemRect[0], itemRect[1] + itemRect[3], itemRect[2], 30))
+                            if className == "Weapon" or className == "StrengthPotion":
+                                stats = textFont.render("+" + str(currItem.effect) + " atk", 1, BLACK)
+                            elif className == "Shield" or className == "HealthPotion":
+                                stats = textFont.render("+" + str(currItem.effect) + " health", 1, BLACK)
+                            
+                            display.blit(stats, (itemRect[0] + 5, itemRect[1] + itemRect[3] + 3))
+
+
 
                         if allButtons[i][k].isLeftClicked(events):
                             className = self.inventory[i*4 + k].__class__.__name__
@@ -658,16 +675,35 @@ class Player(MovingCharacter):
                                     return
                                 else:
                                     drawTextBoxes(["I can only use this in battle!"], 750, BEIGE, "Thinking to yourself")
-                            
+                        elif allButtons[i][k].isRightClicked(events) and not inBattle:
+                            if self.inventory[i*4 + k].throwable:
+                                threwAway = self.inventory.pop(i*4 + k)
+                                drawTextBoxes(["Threw away " + threwAway.name], 750, BEIGE, "Yourself")
+                            else:
+                                drawTextBoxes(["You should not throw this away!"], 750, BEIGE, "Voice in your head")
+
                             #Updates hotbar
-                            pygame.draw.rect(display, BLACK, (150, 780, 1100, 105), 0)
+                        pygame.draw.rect(display, BLACK, (150, 780, 1100, 105), 0)
                         
-                            if not inBattle:
-                                self.loadHotBar()
-                                self.drawHotBar(events, inBattle)
+                        if not inBattle:
+                            self.loadHotBar()
+                            self.drawHotBar(events, inBattle)
             pygame.display.update()
         
-    def getMovement(self, grid, mobs, inBattle):
+class PlayerMap(Player):
+    hotBarSurface = None
+    inventoryButton = Button(830, 795, 100, 30, DARK_BEIGE, "Inventory", BLACK, WHITE)
+    canCut = False
+    canPush = False
+
+    sprites = loadDirectionalSprites("player", "Player")
+    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeWeapon, activeShield, addDamage):
+        Player.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeWeapon, activeShield, addDamage)
+
+    def draw(self):
+         display.blit(self.sprites[self.direction], (self.x, self.y))
+
+    def getMovement(self, grid, mobs):
         if not player.slide(currObstacleMap, mobs): 
             newX = self.x
             newY = self.y
@@ -686,23 +722,10 @@ class Player(MovingCharacter):
                     newY += movement[self.direction][1]
                 
                 #Allows you to move if no collision
-                if not inBattle:
-                    if not self.isCollide(grid, newX, newY):
-                        self.x = newX
-                        self.y = newY
+                if not self.isCollide(grid, newX, newY):
+                    self.x = newX
+                    self.y = newY
 
-class PlayerMap(Player):
-    hotBarSurface = None
-    inventoryButton = Button(830, 795, 100, 30, DARK_BEIGE, "Inventory", BLACK, WHITE)
-    canCut = False
-    canPush = False
-
-    sprites = loadDirectionalSprites("player", "Player")
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeWeapon, activeShield, addDamage):
-        Player.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeWeapon, activeShield, addDamage)
-
-    def draw(self):
-         display.blit(self.sprites[self.direction], (self.x, self.y))
     def goNewArea(self): #Returns 0 if player has not left area, otherwise returns the direction they left from (clockwise starting from top)
         cornerLocations = []
         cornerLocations.append(self.getGridPos(self.x, self.y, False))
@@ -810,11 +833,7 @@ class PlayerMap(Player):
         newHotBarSurface.blit(goldText, (250, 10))
 
         #Displays health bar
-        percentageFilled = round(self.remainingHealth/self.maxHealth * 150)
-        healthData = textFont.render(str(self.remainingHealth) + "/" + str(self.maxHealth), 1, BLACK)
-        pygame.draw.rect(newHotBarSurface, RED, (220, 60, percentageFilled, 20), 0)
-        pygame.draw.rect(newHotBarSurface, BLACK, (220, 60, 150, 20), 2)
-        newHotBarSurface.blit(healthData, (380, 53))
+        self.displayHealthBar(newHotBarSurface, 220, 60, 150)
         self.hotBarSurface = newHotBarSurface
             
     def drawHotBar(self, events, inBattle):
@@ -823,9 +842,45 @@ class PlayerMap(Player):
         if self.inventoryButton.isLeftClicked(events):
             self.displayInventory(inBattle)
 
+#Player battle container is not completley related to the player
 class PlayerBattle(Player):
-    def __init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeWeapon, activeShield, addDamage):
-        Player.__init__(self, areaNumber, x, y, name, remainingHealth, maxHealth, speed, attack, direction, goldAmount, inventory, activeWeapon, activeShield, addDamage)
+    sprite = loadTile("heart.png", 50, 50)
+    def __init__(self, playerMap):
+        self.areaNumber = None
+        self.x = 300
+        self.y = 300
+        self.direction = None
+        self.goldAmount = playerMap.goldAmount
+        self.speed = playerMap.speed
+        self.attack = playerMap.attack
+        self.remainingHealth = playerMap.remainingHealth  
+        self.maxHealth = playerMap.maxHealth
+        self.inventory = playerMap.inventory
+        self.activeWeapon = playerMap.activeWeapon
+        self.activeShield = playerMap.activeShield
+        self.addDamage = playerMap.addDamage
+        
+    def getMovement(self):
+        newX = self.x
+        newY = self.y
+        for i in range(self.speed):
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_RIGHT] or keys[pygame.K_LEFT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
+                if keys[pygame.K_RIGHT]:
+                    self.direction = 2
+                elif keys[pygame.K_LEFT]:
+                    self.direction = 4
+                elif keys[pygame.K_UP]:
+                    self.direction = 1
+                elif keys[pygame.K_DOWN]:
+                    self.direction = 3
+                newX += movement[self.direction][0]
+                newY += movement[self.direction][1]
+            if newX >= 200 and newX <= 800 and newY >= 200 and newY >= 800:
+                self.x = newX
+                self.y = newY
+    def draw(self):
+        display.blit(self.sprite, (self.x, self.y))
 
 #Environmental obstacles 
 class Environmental(GameObject, GridRestrictedObject):
@@ -1033,11 +1088,11 @@ background = getMapSurface(currGroundMap, currObstacleMap, givingVillagers, sell
 
 #Initializing battle screen info
 currentMobBattle = None
+attackButton = Button(100, 700, 300, 60, RED, "ATTACK", BLACK, WHITE)
+inventoryButton = Button(500, 700, 400, 60, DARK_BEIGE, "INVENTORY", BLACK, WHITE)
+runButton = Button(1000, 700, 300, 60, FOREST_GREEN, "RUN", BLACK, WHITE)
 battleSurface = pygame.Surface((WIDTH, HEIGHT))
-attackButton = Button(300, 700, 200, 100, RED, "ATTACK", BLACK, WHITE)
-inventoryButton = Button(600, 700, 200, 100, DARK_BEIGE, "INVENTORY", BLACK, WHITE)
-runButton = Button(900, 700, 200, 100, FOREST_GREEN, "RUN", BLACK, WHITE)
-
+pygame.draw.rect(battleSurface, WHITE, (300, 100, 800, 500), 3)
 #Booleans to tell game state
 inStart = True
 inMap = False
@@ -1089,7 +1144,7 @@ while(inPlay):
         display.blit(background, (0, 0))
 
         #Character movement
-        player.getMovement(currObstacleMap, mobs, False)
+        player.getMovement(currObstacleMap, mobs)
         player.draw()
 
         #Updates all the mobs
@@ -1099,10 +1154,12 @@ while(inPlay):
                 mob.getPlayerPath(player, currObstacleMap, mobs)
             mob.moveToPlayer(player, currObstacleMap, mobs)
             if mob.isContactEntity(player, mob.x, mob.y):
+                #Makes sure boss never respawns
                 if mob.name == "Overlord":
                     bossDefeated = True
                 currentMobBattle = mobs.pop(i)
-                battleScreen = True
+                inBattle = True
+                inMap = False
 
         #Allows player to use space to interact with objects
         for event in eventQueue:
@@ -1145,14 +1202,43 @@ while(inPlay):
 
     #Enters the battle screen
     elif inBattle:
-        pygame.display.fill(BLACK)
         playerMove = True
         battling = True
         
         #Creates a copy of the player that will be the battlescreen
-        battlingPlayer = PlayerBattle()
+        battlingPlayer = PlayerBattle(player)
         while battling:
             events = pygame.event.get()
+            checkIfExitGame(events)
+
+            if battlingPlayer.remainingHealth == 0:
+                battling = False
+            battlingPlayer.displayHealthBar(display, 300, 300, 200)
+            display.blit(battleSurface, (0, 0))
+            attackButton.draw()
+            inventoryButton.draw()
+            runButton.draw()
+
+            if playerMove:
+                if attackButton.isLeftClicked(events):
+                    playerMove = False
+                elif runButton.isLeftClicked(events):
+                    percentRun = currentMobBattle.level * 30
+                    number = randint(1, 100)
+                    if number > 0:
+                        battling = False
+                    else:
+                        playerMove = False
+                elif inventoryButton.isLeftClicked(events):
+                    battlingPlayer.displayInventory(True)
+            else:
+                display.fill(BLACK)
+                display.blit(battleSurface, (0, 0))
+            pygame.display.update()
+        
+
+        inBattle = False
+        inMap = True
 
     clock.tick(70)
 pygame.quit()
